@@ -4,6 +4,10 @@
 
 ---
 
+![Ultralight](screenshot.png)
+
+---
+
 **285 KB** stripped binary. **134 KB** compressed DMG. Zero dependencies beyond macOS itself.
 
 Pure AppKit. No SwiftUI. No Electron. No frameworks. No package managers. Just `swift build` and a single executable that links against what ships with every Mac.
