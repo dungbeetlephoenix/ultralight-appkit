@@ -1,138 +1,82 @@
 # ULTRALIGHT
 
-### A music player that fits in a cache line budget
-
----
-
 ![Ultralight](screenshot.png)
 
----
+A music player in 285 KB.
 
-**285 KB** stripped binary. **134 KB** compressed DMG. Zero dependencies beyond macOS itself.
+I got tired of every audio app on my Mac being enormous. Spotify is 150 MB. The Electron version of this same player was 104 MB. I wanted to see how small I could go while keeping the features I actually use — EQ, spectrum, auto-analysis.
 
-Pure AppKit. No SwiftUI. No Electron. No frameworks. No package managers. Just `swift build` and a single executable that links against what ships with every Mac.
+This is pure AppKit. No SwiftUI, no Electron, no third-party dependencies. One `swift build`, one binary, done. It links against frameworks that already ship with macOS and nothing else.
 
----
+The DMG is 134 KB. Smaller than most album art.
 
-## Abstract
+## What it does
 
-Ultralight is a native macOS music player built on the thesis that audio software has no business being large. It implements real-time FFT spectrum analysis, 8-band parametric equalization with per-track persistence, and automatic tonal profiling — all within a binary smaller than most JPEG images.
+- Plays FLAC, MP3, WAV, AAC, M4A, OGG, OPUS, AIFF, and anything else AVFoundation can decode
+- 8-band parametric EQ that persists per track
+- Analyzes each track on first play — computes spectral energy, crest factor, centroid — and generates a corrective EQ curve automatically
+- Tags tracks as bass-heavy, bright, muddy, thin, compressed, dynamic, or clipping
+- Real-time 32-band FFT spectrum visualizer
+- Media key support, menu bar icon, drag-and-drop import
+- Scans folders recursively, reads metadata from embedded tags
 
-The architecture is deliberately minimal: one process, one window, one render path. State flows through Combine publishers. Audio flows through an `AVAudioEngine` graph. Everything else is `NSView` subclasses drawing into dirty rects.
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────┐
-│                    AppDelegate                       │
-│                        │                             │
-│                    MainWindow                        │
-│         ┌──────────────┼──────────────┐              │
-│    HeaderView    TrackListView    EQPanelView        │
-│         └──────────────┼──────────────┘              │
-│                  PlaybackBarView                     │
-│                   SpectrumView                       │
-│                        │                             │
-│                    AppState ←── Combine ──→ Views    │
-│                        │                             │
-│                   AudioEngine                        │
-│            ┌───────────┼───────────┐                 │
-│     AVAudioPlayerNode  AVAudioUnitEQ  AVAudioMixerNode│
-│                        │                             │
-│                  AudioAnalyzer                       │
-│              (vDSP FFT · Accelerate)                 │
-└─────────────────────────────────────────────────────┘
-```
-
-## Features
-
-| Feature | Implementation |
-|---|---|
-| **Playback** | `AVAudioEngine` graph: player → 8-band parametric EQ → mixer → output |
-| **Spectrum** | Real-time 1024-sample FFT via `vDSP_fft_zrip`, Hann-windowed, 32-band logarithmic binning |
-| **Auto-EQ** | Offline spectral analysis computes bass/mid/treble energy distribution, spectral centroid, crest factor, peak level; generates corrective EQ curve per track |
-| **Detection** | Classifies tracks as bass-heavy, bright, muddy, thin, compressed, dynamic, or clipping based on spectral statistics |
-| **Persistence** | Per-track EQ profiles keyed by partial MD5 hash (first 64KB + last 64KB + file size), matching the Electron version's format |
-| **Formats** | FLAC, MP3, WAV, AAC, M4A, OGG, OPUS, AIFF, WMA, ALAC — anything `AVFoundation` decodes |
-| **System** | Media key integration via `MPRemoteCommandCenter`, menu bar status item, drag-and-drop folder import |
-
-## Size Comparison
+## How small
 
 ```
-Application                    Binary      Installer/DMG
-─────────────────────────────────────────────────────────
-Ultralight (AppKit)            285 KB         134 KB
-μTorrent 1.6 (2006)          ~290 KB            —
-Ultralight (SwiftUI)           400 KB         201 KB
-foobar2000                       —           4.6 MB
-Spotify                          —          ~150 MB
-Electron (original)              —           104 MB
+Ultralight (this)        285 KB binary     134 KB dmg
+μTorrent 1.6 (2006)     ~290 KB binary
+foobar2000                                 4.6 MB installer
+Spotify                                   ~150 MB
 ```
+
+I started with a SwiftUI version that came out to 400 KB. Rewriting the views as plain NSView subclasses with manual Auto Layout and custom `draw()` calls shaved off 115 KB. The `-Osize` compiler flag and aggressive stripping got it the rest of the way.
+
+The hot path is all Apple frameworks — `vDSP` for FFT, `AVAudioEngine` for the audio graph — so optimizing for size over speed costs nothing audible.
 
 ## Build
 
-Requires macOS 14+ and Swift 5.9+.
+macOS 14+, Swift 5.9+.
 
 ```sh
 swift build -c release
 strip -rSTx .build/release/Ultralight
 ```
 
-The binary is at `.build/release/Ultralight`. To create an `.app` bundle:
+To make an app bundle:
 
 ```sh
 mkdir -p Ultralight.app/Contents/MacOS
 cp .build/release/Ultralight Ultralight.app/Contents/MacOS/
 ```
 
-Add an `Info.plist` to `Ultralight.app/Contents/` with `CFBundleExecutable` set to `Ultralight`.
+You'll need an `Info.plist` in `Ultralight.app/Contents/` — just set `CFBundleExecutable` to `Ultralight`.
 
-## Design Decisions
+## How it works
 
-**Why not SwiftUI?** We built a SwiftUI version first. It worked. The binary was 400 KB. Removing the SwiftUI dependency and writing pure `NSView` subclasses saved 115 KB (29%) and eliminated the SwiftUI runtime overhead. At this scale, every framework import is a line item.
+Audio runs through an `AVAudioEngine` graph: `AVAudioPlayerNode` → `AVAudioUnitEQ` (8 parametric bands) → `AVAudioMixerNode` → output. A tap on the mixer feeds 1024-sample buffers into a Hann-windowed FFT for the spectrum display.
 
-**Why Combine without SwiftUI?** Combine ships with macOS and costs nothing to link. `@Published` properties with `.sink` subscriptions give us reactive state propagation without pulling in SwiftUI's view diffing machinery.
+State management is Combine — `@Published` properties on a central `AppState` singleton, views subscribe with `.sink`. No SwiftUI means no view diffing overhead, just targeted UI updates when values change.
 
-**Why MD5?** The hash format matches the Electron version's database for migration compatibility. It hashes a partial fingerprint (head + tail + size), not the full file — fast enough to scan thousands of tracks at startup.
+Track identification uses a partial MD5 hash (first 64 KB + last 64 KB + file size) so EQ profiles follow tracks even if they move on disk. The hash format is compatible with the earlier Electron version's database.
 
-**Why `-Osize`?** At this binary size, `-O` (speed) vs `-Osize` saves 16 KB with no measurable playback latency impact. The hot path is `vDSP` and `AVAudioEngine`, both of which run in Apple's own optimized frameworks.
+The offline analyzer runs a longer FFT pass over the full file, computes energy distribution across bass/mid/treble bands, measures dynamic range via crest factor, and derives a suggested EQ curve that gets applied automatically if no saved profile exists.
 
-## File Structure
+## Structure
 
 ```
 Sources/Ultralight/
-├── App/
-│   ├── main.swift              # NSApplication.shared.run()
-│   ├── AppDelegate.swift       # Window + system component init
-│   └── AppState.swift          # Central state, Combine publishers
-├── Audio/
-│   ├── AudioEngine.swift       # AVAudioEngine graph + spectrum tap
-│   ├── AudioAnalyzer.swift     # Offline FFT analysis + auto-EQ
-│   └── FileHasher.swift        # Partial MD5 track fingerprinting
-├── Models/
-│   ├── Track.swift
-│   ├── EQProfile.swift
-│   └── AnalysisResult.swift
-├── Scanner/
-│   └── FolderScanner.swift     # Recursive scan + AVAsset metadata
-├── Storage/
-│   ├── ConfigStore.swift       # Folder list persistence
-│   ├── EQStore.swift           # Per-track EQ profiles
-│   └── AnalysisStore.swift     # Analysis cache
-├── System/
-│   ├── MenuBarManager.swift    # NSStatusItem
-│   └── MediaKeyHandler.swift   # MPRemoteCommandCenter
-└── Views/
-    ├── MainWindow.swift        # NSWindow + Auto Layout + drag-drop
-    ├── HeaderView.swift        # Logo, now-playing, format badge
-    ├── TrackListView.swift     # NSTableView + custom cells
-    ├── PlaybackBarView.swift   # Transport, progress, volume
-    ├── SpectrumView.swift      # Real-time FFT visualization
-    ├── EQPanelView.swift       # 8-band EQ + detection badges
-    └── SettingsWindow.swift    # Folder management
+├── App/          main.swift, AppDelegate, AppState
+├── Audio/        AudioEngine, AudioAnalyzer, FileHasher
+├── Models/       Track, EQProfile, AnalysisResult
+├── Scanner/      FolderScanner
+├── Storage/      ConfigStore, EQStore, AnalysisStore
+├── System/       MenuBarManager, MediaKeyHandler
+└── Views/        MainWindow, HeaderView, TrackListView,
+                  PlaybackBarView, SpectrumView,
+                  EQPanelView, SettingsWindow
 ```
 
-24 files. 2,244 lines. That's the whole thing.
+24 files, ~2200 lines.
 
 ## License
 
