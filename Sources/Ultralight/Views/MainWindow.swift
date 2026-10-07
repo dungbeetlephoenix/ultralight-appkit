@@ -28,6 +28,7 @@ final class MainWindow: NSWindow {
         setupLayout()
         setupDragDrop()
         setupBindings()
+        setupKeyboard()
     }
 
     private func setupLayout() {
@@ -61,7 +62,7 @@ final class MainWindow: NSWindow {
             playbackBar.bottomAnchor.constraint(equalTo: container.bottomAnchor),
             playbackBar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             playbackBar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            playbackBar.heightAnchor.constraint(equalToConstant: 84),
+            playbackBar.heightAnchor.constraint(equalToConstant: 96),
 
             // EQ panel on right
             eqPanelView.topAnchor.constraint(equalTo: headerView.bottomAnchor),
@@ -86,6 +87,30 @@ final class MainWindow: NSWindow {
         state.$showEQ.receive(on: RunLoop.main).sink { [weak self] show in
             self?.eqPanelView.isHidden = !show
         }.store(in: &cancellables)
+    }
+
+    private func setupKeyboard() {
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard self?.isKeyWindow == true else { return event }
+            let state = AppState.shared
+            let cmd = event.modifierFlags.contains(.command)
+            switch event.keyCode {
+            case 49: // Space
+                state.togglePlay(); return nil
+            case 123: // Left
+                if cmd { state.playPrevious() } else { state.seek(to: max(0, state.currentTime - 5)) }
+                return nil
+            case 124: // Right
+                if cmd { state.playNext() } else { state.seek(to: min(state.duration, state.currentTime + 5)) }
+                return nil
+            case 126: // Up
+                state.volume = min(1, state.volume + 0.05); return nil
+            case 125: // Down
+                state.volume = max(0, state.volume - 0.05); return nil
+            default:
+                return event
+            }
+        }
     }
 
     // Hide instead of close

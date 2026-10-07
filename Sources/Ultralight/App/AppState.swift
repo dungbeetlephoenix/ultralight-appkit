@@ -21,6 +21,7 @@ final class AppState: ObservableObject {
     @Published var showEQ: Bool = true
 
     @Published var spectrumData: [Float] = Array(repeating: 0, count: 32)
+    @Published var waveformData: [Float] = []
 
     let audioEngine = AudioEngine()
     private var timeTimer: Timer?
@@ -38,6 +39,9 @@ final class AppState: ObservableObject {
         }
         audioEngine.onTrackFinished = { [weak self] in
             DispatchQueue.main.async { self?.playNext() }
+        }
+        audioEngine.onTrackAdvanced = { [weak self] path in
+            DispatchQueue.main.async { self?.handleTrackAdvanced(path: path) }
         }
     }
 
@@ -120,8 +124,34 @@ final class AppState: ObservableObject {
             duration = audioEngine.duration
             loadEQForCurrentTrack()
             startTimeUpdates()
+            queueNextTrack()
+            computeWaveform(for: track)
         } catch {
             print("Failed to play \(track.path): \(error)")
+        }
+    }
+
+    private func handleTrackAdvanced(path: String) {
+        guard let track = tracks.first(where: { $0.path == path }) else { return }
+        currentTrack = track
+        duration = audioEngine.duration
+        loadEQForCurrentTrack()
+        queueNextTrack()
+        computeWaveform(for: track)
+    }
+
+    private func queueNextTrack() {
+        guard let next = nextTrack() else { return }
+        _ = audioEngine.queueNext(path: next.path)
+    }
+
+    private func computeWaveform(for track: Track) {
+        waveformData = []
+        let path = track.path
+        Task {
+            if let waveform = await AudioAnalyzer.computeWaveform(path: path) {
+                self.waveformData = waveform
+            }
         }
     }
 

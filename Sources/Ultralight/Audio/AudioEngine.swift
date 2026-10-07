@@ -1,5 +1,11 @@
 import AVFoundation
 import Accelerate
+import CoreAudio
+
+struct OutputDevice {
+    let id: AudioDeviceID
+    let name: String
+}
 
 final class AudioEngine: ObservableObject {
     private let engine = AVAudioEngine()
@@ -9,15 +15,15 @@ final class AudioEngine: ObservableObject {
 
     private var audioFile: AVAudioFile?
     private var spectrumTap: Bool = false
+    private var queuedFile: AVAudioFile?
+    private var queuedPath: String?
+    private var sampleOffset: AVAudioFramePosition = 0
 
-    // Guard against spurious completion callbacks when we manually stop
     private var isSwitchingTracks = false
 
-    // Callback for spectrum data (called on audio thread, post to main)
     var onSpectrumData: (([Float]) -> Void)?
-
-    // Callback when track finishes playing naturally (not from manual stop/switch)
     var onTrackFinished: (() -> Void)?
+    var onTrackAdvanced: ((String) -> Void)?
 
     private let eqFrequencies: [Float] = [60, 170, 310, 600, 1000, 3000, 6000, 12000]
 
@@ -111,9 +117,11 @@ final class AudioEngine: ObservableObject {
     // MARK: - Playback
 
     func loadAndPlay(path: String) throws {
-        // Set flag BEFORE stopping so the completion handler knows to ignore
         isSwitchingTracks = true
         playerNode.stop()
+        queuedFile = nil
+        queuedPath = nil
+        sampleOffset = 0
 
         let url = URL(fileURLWithPath: path)
         audioFile = try AVAudioFile(forReading: url)
@@ -131,15 +139,18 @@ final class AudioEngine: ObservableObject {
             try engine.start()
         }
 
-        // Clear the flag right before scheduling new audio
         isSwitchingTracks = false
 
         playerNode.scheduleFile(file, at: nil) { [weak self] in
-            guard let self = self else { return }
-            // Only fire "track finished" if we didn't manually stop/switch
-            guard !self.isSwitchingTracks else { return }
-            DispatchQueue.main.async {
-                self.onTrackFinished?()
+            guard let self = self, !self.isSwitchingTracks else { return }
+            if let qf = self.queuedFile, let qp = self.queuedPath {
+                self.sampleOffset += file.length
+                self.audioFile = qf
+                self.queuedFile = nil
+                self.queuedPath = nil
+                DispatchQueue.main.async { self.onTrackAdvanced?(qp) }
+            } else {
+                DispatchQueue.main.async { self.onTrackFinished?() }
             }
         }
         playerNode.play()
@@ -157,6 +168,9 @@ final class AudioEngine: ObservableObject {
         isSwitchingTracks = true
         playerNode.stop()
         audioFile = nil
+        queuedFile = nil
+        queuedPath = nil
+        sampleOffset = 0
     }
 
     func seek(to time: Double) {
@@ -168,15 +182,15 @@ final class AudioEngine: ObservableObject {
 
         isSwitchingTracks = true
         playerNode.stop()
+        queuedFile = nil
+        queuedPath = nil
+        sampleOffset = 0
         isSwitchingTracks = false
 
         let remainingFrames = AVAudioFrameCount(totalFrames - targetFrame)
         playerNode.scheduleSegment(file, startingFrame: targetFrame, frameCount: remainingFrames, at: nil) { [weak self] in
-            guard let self = self else { return }
-            guard !self.isSwitchingTracks else { return }
-            DispatchQueue.main.async {
-                self.onTrackFinished?()
-            }
+            guard let self = self, !self.isSwitchingTracks else { return }
+            DispatchQueue.main.async { self.onTrackFinished?() }
         }
         playerNode.play()
     }
@@ -189,12 +203,38 @@ final class AudioEngine: ObservableObject {
         guard audioFile != nil,
               let nodeTime = playerNode.lastRenderTime,
               let playerTime = playerNode.playerTime(forNodeTime: nodeTime) else { return 0 }
-        return Double(playerTime.sampleTime) / playerTime.sampleRate
+        return Double(playerTime.sampleTime - sampleOffset) / playerTime.sampleRate
     }
 
     var duration: Double {
         guard let file = audioFile else { return 0 }
         return Double(file.length) / file.processingFormat.sampleRate
+    }
+
+    // MARK: - Gapless
+
+    func queueNext(path: String) -> Bool {
+        guard let currentFile = audioFile else { return false }
+        guard let nextFile = try? AVAudioFile(forReading: URL(fileURLWithPath: path)) else { return false }
+        guard nextFile.processingFormat.sampleRate == currentFile.processingFormat.sampleRate,
+              nextFile.processingFormat.channelCount == currentFile.processingFormat.channelCount else { return false }
+
+        queuedFile = nextFile
+        queuedPath = path
+
+        playerNode.scheduleFile(nextFile, at: nil) { [weak self] in
+            guard let self = self, !self.isSwitchingTracks else { return }
+            if let qf = self.queuedFile, let qp = self.queuedPath {
+                self.sampleOffset += nextFile.length
+                self.audioFile = qf
+                self.queuedFile = nil
+                self.queuedPath = nil
+                DispatchQueue.main.async { self.onTrackAdvanced?(qp) }
+            } else {
+                DispatchQueue.main.async { self.onTrackFinished?() }
+            }
+        }
+        return true
     }
 
     // MARK: - EQ
@@ -217,5 +257,55 @@ final class AudioEngine: ObservableObject {
 
     func setVolume(_ volume: Float) {
         engine.mainMixerNode.outputVolume = volume
+    }
+
+    // MARK: - Output Device
+
+    static func outputDevices() -> [OutputDevice] {
+        var addr = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size) == noErr else { return [] }
+        let count = Int(size) / MemoryLayout<AudioDeviceID>.size
+        var ids = [AudioDeviceID](repeating: 0, count: count)
+        guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size, &ids) == noErr else { return [] }
+
+        return ids.compactMap { id in
+            var streamAddr = AudioObjectPropertyAddress(
+                mSelector: kAudioDevicePropertyStreamConfiguration,
+                mScope: kAudioObjectPropertyScopeOutput,
+                mElement: kAudioObjectPropertyElementMain
+            )
+            var streamSize: UInt32 = 0
+            guard AudioObjectGetPropertyDataSize(id, &streamAddr, 0, nil, &streamSize) == noErr, streamSize > 0 else { return nil }
+            let bufSize = Int(streamSize)
+            let layout = UnsafeMutableRawPointer.allocate(byteCount: bufSize, alignment: MemoryLayout<AudioBufferList>.alignment)
+            defer { layout.deallocate() }
+            guard AudioObjectGetPropertyData(id, &streamAddr, 0, nil, &streamSize, layout) == noErr else { return nil }
+            let abl = layout.assumingMemoryBound(to: AudioBufferList.self)
+            let channels = UnsafeMutableAudioBufferListPointer(abl).reduce(0) { $0 + Int($1.mNumberChannels) }
+            guard channels > 0 else { return nil }
+
+            var nameAddr = AudioObjectPropertyAddress(
+                mSelector: kAudioObjectPropertyName,
+                mScope: kAudioObjectPropertyScopeGlobal,
+                mElement: kAudioObjectPropertyElementMain
+            )
+            var name: CFString = "" as CFString
+            var nameSize = UInt32(MemoryLayout<CFString>.size)
+            AudioObjectGetPropertyData(id, &nameAddr, 0, nil, &nameSize, &name)
+            return OutputDevice(id: id, name: name as String)
+        }
+    }
+
+    func setOutputDevice(_ deviceID: AudioDeviceID) {
+        var id = deviceID
+        guard let au = engine.outputNode.audioUnit else { return }
+        AudioUnitSetProperty(au, kAudioOutputUnitProperty_CurrentDevice,
+                             kAudioUnitScope_Global, 0, &id,
+                             UInt32(MemoryLayout<AudioDeviceID>.size))
     }
 }

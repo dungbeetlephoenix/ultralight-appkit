@@ -132,6 +132,37 @@ enum AudioAnalyzer {
         )
     }
 
+    static func computeWaveform(path: String, resolution: Int = 200) async -> [Float]? {
+        guard let file = try? AVAudioFile(forReading: URL(fileURLWithPath: path)) else { return nil }
+        let totalFrames = Int(file.length)
+        let framesPerBin = totalFrames / resolution
+        guard framesPerBin > 0 else { return nil }
+
+        let format = file.processingFormat
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(framesPerBin)) else { return nil }
+
+        var peaks = [Float](repeating: 0, count: resolution)
+
+        for i in 0..<resolution {
+            file.framePosition = AVAudioFramePosition(i * framesPerBin)
+            let toRead = AVAudioFrameCount(min(framesPerBin, totalFrames - i * framesPerBin))
+            guard toRead > 0 else { break }
+            do { try file.read(into: buffer, frameCount: toRead) } catch { continue }
+            guard let data = buffer.floatChannelData?[0] else { continue }
+            var peak: Float = 0
+            vDSP_maxmgv(data, 1, &peak, vDSP_Length(buffer.frameLength))
+            peaks[i] = peak
+        }
+
+        var maxPeak: Float = 0
+        vDSP_maxv(peaks, 1, &maxPeak, vDSP_Length(resolution))
+        if maxPeak > 0 {
+            var div = maxPeak
+            vDSP_vsdiv(peaks, 1, &div, &peaks, 1, vDSP_Length(resolution))
+        }
+        return peaks
+    }
+
     private static func generateAutoEQ(bass: Float, mid: Float, treble: Float, centroid: Float) -> EQProfile {
         var bands = EQBand.defaultBands
 

@@ -114,7 +114,7 @@ final class PlaybackBarView: NSView {
             mainStack.trailingAnchor.constraint(equalTo: trailingAnchor),
             mainStack.bottomAnchor.constraint(equalTo: bottomAnchor),
 
-            progressBar.heightAnchor.constraint(equalToConstant: 4),
+            progressBar.heightAnchor.constraint(equalToConstant: 16),
             playBtn.widthAnchor.constraint(equalToConstant: 32),
             playBtn.heightAnchor.constraint(equalToConstant: 32),
             volBar.widthAnchor.constraint(equalToConstant: 60),
@@ -151,6 +151,10 @@ final class PlaybackBarView: NSView {
             self?.volBar.progress = Double(v)
             self?.volPctLabel.stringValue = "\(Int(v * 100))%"
         }.store(in: &cancellables)
+
+        state.$waveformData.receive(on: RunLoop.main).sink { [weak self] w in
+            self?.progressBar.waveformData = w
+        }.store(in: &cancellables)
     }
 
     @objc private func togglePlay() { AppState.shared.togglePlay() }
@@ -171,10 +175,11 @@ final class PlaybackBarView: NSView {
     }
 }
 
-// Clickable progress/volume bar
+// Clickable progress/volume bar with optional waveform
 final class ProgressBarView: NSView {
     var progress: Double = 0 { didSet { needsDisplay = true } }
     var color: NSColor = NSColor(hex: 0x4a9eff)
+    var waveformData: [Float] = [] { didSet { needsDisplay = true } }
     var onClick: ((Double) -> Void)?
 
     override init(frame: NSRect) {
@@ -185,10 +190,39 @@ final class ProgressBarView: NSView {
     required init?(coder: NSCoder) { fatalError() }
 
     override func draw(_ dirtyRect: NSRect) {
-        NSColor(hex: 0x1a1a1a).setFill()
+        let bg = NSColor(hex: 0x1a1a1a)
+        bg.setFill()
         bounds.fill()
-        color.setFill()
-        NSRect(x: 0, y: 0, width: bounds.width * CGFloat(progress), height: bounds.height).fill()
+
+        if !waveformData.isEmpty {
+            let barWidth = bounds.width / CGFloat(waveformData.count)
+            let progressX = bounds.width * CGFloat(progress)
+            let dim = NSColor(hex: 0x222222)
+
+            for (i, peak) in waveformData.enumerated() {
+                let x = CGFloat(i) * barWidth
+                let h = max(1, bounds.height * CGFloat(peak))
+                let y = (bounds.height - h) / 2
+                let rect = NSRect(x: x, y: y, width: max(1, barWidth - 0.5), height: h)
+
+                if x < progressX {
+                    color.withAlphaComponent(0.6).setFill()
+                } else {
+                    dim.setFill()
+                }
+                rect.fill()
+            }
+
+            // Playhead line
+            if progress > 0 {
+                color.setFill()
+                NSRect(x: progressX - 0.5, y: 0, width: 1, height: bounds.height).fill()
+            }
+        } else {
+            // Flat bar fallback
+            color.setFill()
+            NSRect(x: 0, y: 0, width: bounds.width * CGFloat(progress), height: bounds.height).fill()
+        }
     }
 
     override func mouseDown(with event: NSEvent) {

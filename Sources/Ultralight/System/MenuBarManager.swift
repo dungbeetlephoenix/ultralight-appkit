@@ -1,4 +1,5 @@
 import AppKit
+import CoreAudio
 
 final class MenuBarManager: NSObject {
     private var statusItem: NSStatusItem?
@@ -48,11 +49,39 @@ final class MenuBarManager: NSObject {
 
         menu.addItem(.separator())
 
+        let outputItem = NSMenuItem(title: "Output Device", action: nil, keyEquivalent: "")
+        outputItem.submenu = buildDeviceMenu()
+        menu.addItem(outputItem)
+
+        menu.addItem(.separator())
+
         let quitItem = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
 
         statusItem?.menu = menu
+    }
+
+    private func buildDeviceMenu() -> NSMenu {
+        let sub = NSMenu()
+        let devices = AudioEngine.outputDevices()
+        for device in devices {
+            let item = NSMenuItem(title: device.name, action: #selector(selectDevice(_:)), keyEquivalent: "")
+            item.target = self
+            item.tag = Int(device.id)
+            sub.addItem(item)
+        }
+        return sub
+    }
+
+    @objc private func selectDevice(_ sender: NSMenuItem) {
+        let deviceID = AudioDeviceID(sender.tag)
+        state?.audioEngine.setOutputDevice(deviceID)
+        // Update checkmarks
+        if let items = sender.menu?.items {
+            for item in items { item.state = .off }
+        }
+        sender.state = .on
     }
 
     @objc private func toggleWindow() {
