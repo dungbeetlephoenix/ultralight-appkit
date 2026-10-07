@@ -30,7 +30,7 @@ for original, packed in [('__const', '__text_const'), ('__cstring', '__cstring')
 
 
 def source_hashes():
-    files = [ROOT / 'Package.swift', ROOT / 'VERSION',
+    files = [ROOT / 'Package.swift', ROOT / 'VERSION', ROOT / 'LICENSE',
              *sorted((ROOT / 'Sources').rglob('*.swift')),
              *[p for p in sorted((ROOT / 'Scripts').rglob('*'))
                if p.is_file() and '__pycache__' not in p.parts]]

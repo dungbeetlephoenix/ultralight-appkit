@@ -321,6 +321,7 @@ class ToolingTests(unittest.TestCase):
 
     def staged_build(self, *, invalid_gates=False, changing_source=False):
         self.write(self.root / 'VERSION', '2.2.0\n')
+        self.write(self.root / 'LICENSE', 'MIT license fixture\n')
         self.write(self.root / 'Sources/main.swift', '// fixture')
         self.icon()
         workspace = self.root / 'workspace'; workspace.mkdir()
@@ -355,6 +356,9 @@ class ToolingTests(unittest.TestCase):
         self.assertEqual(info['CFBundleShortVersionString'], '2.2.0')
         self.assertEqual(info['CFBundleIconFile'], 'AppIcon')
         self.assertIn('Contents/Resources/AppIcon.icns', report['files'])
+        self.assertIn('Contents/Resources/LICENSE', report['files'])
+        self.assertEqual((stage / 'Ultralight.app/Contents/Resources/LICENSE').read_bytes(),
+                         (self.root / 'LICENSE').read_bytes())
         self.assertIsNone(report['git_head'])
         self.assertTrue((stage / 'gates/results.json').exists())
         self.assertEqual(report['app_bytes'], sum(item['bytes'] for item in report['files'].values()))
@@ -371,7 +375,7 @@ class ToolingTests(unittest.TestCase):
         self.assertFalse((self.root / 'workspace/release/size.json').exists())
 
     def test_version_icon_generator_workflow_and_tooling_inputs_are_hashed(self):
-        names = ['VERSION', 'Package.swift', 'Sources/test.swift', 'Scripts/icon.swift',
+        names = ['VERSION', 'LICENSE', 'Package.swift', 'Sources/test.swift', 'Scripts/icon.swift',
                  'Resources/AppIcon.icns', 'Tests/tooling/fixture.txt', '.github/workflows/check.yml']
         for name in names:
             self.write(self.root / name)

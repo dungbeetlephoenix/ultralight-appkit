@@ -173,6 +173,7 @@ def stage_release(stage, workspace, args, environment):
     icon = release_icon()
     (contents / 'Resources').mkdir()
     shutil.copyfile(icon, contents / 'Resources/AppIcon.icns')
+    shutil.copyfile(ROOT / 'LICENSE', contents / 'Resources/LICENSE')
     info['CFBundleIconFile'] = 'AppIcon'
     (contents / 'Info.plist').write_bytes(plistlib.dumps(info, fmt=plistlib.FMT_BINARY))
     run('strip', '-rSTx', '-N', str(binary))
