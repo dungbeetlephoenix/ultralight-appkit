@@ -5,6 +5,7 @@ import Foundation
 @main
 struct UIAudit {
     static var checks: [[String: Any]] = []
+    static var geometryChecks: [[String: Any]] = []
     static var observations: [[String: Any]] = []
     static var layouts: [[String: Any]] = []
     static let output = URL(fileURLWithPath: ProcessInfo.processInfo.environment["ULTRALIGHT_UI_AUDIT_OUTPUT"]!)
@@ -78,7 +79,34 @@ struct UIAudit {
         check("\(name): major frames contained", major.allSatisfy { content.bounds.insetBy(dx: -1, dy: -1).contains($0.convert($0.bounds, to: content)) })
         let controls = descendants(window.playbackBar).compactMap { $0 as? NSButton }
         check("\(name): playback button frames", controls.allSatisfy { $0.bounds.width > 0 && $0.bounds.height > 0 && window.playbackBar.bounds.insetBy(dx: -1, dy: -1).contains($0.convert($0.bounds, to: window.playbackBar)) })
+        inspectControlGeometry(window, name)
         snapshot(content, name)
+    }
+
+    static func inspectControlGeometry(_ window: MainWindow, _ name: String) {
+        func verify(_ suffix: String, _ condition: Bool) {
+            geometryChecks.append(["name": "\(name): \(suffix)", "pass": condition])
+            print("\(condition ? "PASS" : "FAIL") geometry \(name): \(suffix)")
+        }
+        let bar = window.playbackBar
+        guard let play = button(bar, "⏸") ?? button(bar, "▶"),
+              let transport = play.superview as? NSStackView,
+              let controls = transport.superview as? NSStackView,
+              controls.arrangedSubviews.count == 7 else {
+            verify("transport groups exist", false); return
+        }
+        let spacer = controls.arrangedSubviews[5]
+        let eq = controls.arrangedSubviews[4]
+        let volume = controls.arrangedSubviews[6]
+        let t = transport.convert(transport.bounds, to: bar)
+        let e = eq.convert(eq.bounds, to: bar)
+        let v = volume.convert(volume.bounds, to: bar)
+        func exact(_ a: CGFloat, _ b: CGFloat) -> Bool { abs(a - b) < 0.001 }
+        verify("fixed layout density", window.backingScaleFactor == 1)
+        verify("trailing spacer fixed at zero", exact(spacer.bounds.width, 0) && !spacer.hasAmbiguousLayout)
+        verify("transport stays beside EQ and volume", exact(t.maxX + 8, e.minX) && exact(e.maxX + 16, v.minX))
+        verify("volume stays ten points from right edge", exact(v.maxX, bar.bounds.maxX - 10))
+        verify("transport groups fit both window sizes", [t, e, v].allSatisfy { $0.width > 0 && $0.height > 0 && bar.bounds.contains($0) })
     }
 
     static func main() {
@@ -180,9 +208,11 @@ struct UIAudit {
 
     static func finish() {
         let failed = checks.filter { ($0["pass"] as? Bool) != true }.count
-        let report: [String: Any] = ["checks": checks, "observations": observations, "layouts": layouts, "passed": checks.count - failed, "failed": failed, "scope": "Actual AppKit views, Combine bindings, target/action wiring, filtering, layout, and hidden-window bitmap rendering. Synthetic state only; playback was never started. ConfigStore redirected to isolated temporary storage."]
+        let geometryFailed = geometryChecks.filter { ($0["pass"] as? Bool) != true }.count
+        let report: [String: Any] = ["checks": checks, "geometryChecks": geometryChecks, "geometryFailed": geometryFailed, "observations": observations, "layouts": layouts, "passed": checks.count - failed, "failed": failed, "scope": "Actual AppKit views, Combine bindings, target/action wiring, filtering, layout, and hidden-window bitmap rendering. Synthetic state only; playback was never started. ConfigStore redirected to isolated temporary storage."]
         if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) { try? data.write(to: output.appendingPathComponent("results.json")) }
         print("RESULT \(checks.count - failed)/\(checks.count) checks passed; \(observations.count) observations")
-        exit(failed == 0 ? 0 : 1)
+        print("GEOMETRY \(geometryChecks.count - geometryFailed)/\(geometryChecks.count) checks passed")
+        exit(failed == 0 && geometryFailed == 0 ? 0 : 1)
     }
 }

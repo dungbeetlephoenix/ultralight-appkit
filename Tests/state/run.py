@@ -18,6 +18,6 @@ with (out/'compile.log').open('w') as log: compiled=subprocess.run(cmd,stdout=lo
 if compiled.returncode: print((out/'compile.log').read_text()); print(out); sys.exit(compiled.returncode)
 if os.environ.get('ULTRALIGHT_AUDIT_STRIP') == '1':
     subprocess.run(['strip', '-rSTx', '-N', str(out / 'state-audit')], check=True)
-    subprocess.run(['codesign', '--force', '--sign', '-', str(out / 'state-audit')], check=True)
+    subprocess.run(['codesign', '--force', '--sign', '-', '--signature-size', '8', str(out / 'state-audit')], check=True)
 with (out/'run.log').open('w') as log: result=subprocess.run([str(out/'state-audit'),str(out)],stdout=log,stderr=subprocess.STDOUT,timeout=30)
 print((out/'run.log').read_text()); print(json.dumps({'output':str(out),'run_exit':result.returncode}));sys.exit(result.returncode)

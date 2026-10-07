@@ -25,12 +25,21 @@ replacement = 'URL(fileURLWithPath: ProcessInfo.processInfo.environment["ULTRALI
 isolated = out / 'ConfigStore.swift'
 isolated.write_text(original.replace(needle, replacement))
 sources = sorted((repo / 'Sources/Ultralight').rglob('*.swift'))
-sources = [p for p in sources if p.name != 'main.swift' and p != config] + [isolated, base / 'UIAudit.swift']
+main_window = repo / 'Sources/Ultralight/Views/MainWindow.swift'
+isolated_window = out / 'MainWindow.swift'
+window_source = main_window.read_text()
+window_needle = 'final class MainWindow: NSWindow {'
+assert window_source.count(window_needle) == 1
+# Layout rounding also depends on the window's backing scale, even with a fixed
+# bitmap size. Override only that display metric in this isolated test copy so
+# the original 1x-layout/2x-bitmap goldens reproduce on any attached screen.
+isolated_window.write_text(window_source.replace(window_needle, window_needle + '\n    override var backingScaleFactor: CGFloat { 1 }'))
+sources = [p for p in sources if p.name != 'main.swift' and p != config and p != main_window] + [isolated, isolated_window, base / 'UIAudit.swift']
 default_flags = ['-Osize', '-whole-module-optimization', '-Xlinker', '-dead_strip', '-Xlinker', '-x']
 effective_flags = default_flags + flags
 binary = out / 'ui-audit'
 cmd = ['xcrun', 'swiftc', '-module-name', 'Ultralight', '-parse-as-library', '-target', platform.machine() + '-apple-macosx14.0'] + effective_flags + [str(p) for p in sources] + ['-o', str(binary)]
-manifest = {'repo': str(repo), 'flags': effective_flags, 'source_hashes': {str(p.relative_to(repo)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((repo / 'Sources/Ultralight').rglob('*.swift'))}, 'config_isolation': 'Only applicationSupportDirectory expression replaced in a temporary copy', 'output': str(out), 'command': cmd}
+manifest = {'repo': str(repo), 'flags': effective_flags, 'source_hashes': {str(p.relative_to(repo)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((repo / 'Sources/Ultralight').rglob('*.swift'))}, 'config_isolation': 'Only applicationSupportDirectory expression replaced in a temporary copy', 'window_rendering': 'Only MainWindow.backingScaleFactor overridden to 1 in a temporary copy; fixed 2x bitmap unchanged', 'output': str(out), 'command': cmd}
 (out / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
 with (out / 'compile.log').open('w') as log:
     compiled = subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT)
@@ -40,7 +49,7 @@ if compiled.returncode:
     raise SystemExit(compiled.returncode)
 if os.environ.get('ULTRALIGHT_AUDIT_STRIP') == '1':
     subprocess.run(['strip', '-rSTx', '-N', str(binary)], check=True)
-    subprocess.run(['codesign', '--force', '--sign', '-', str(binary)], check=True)
+    subprocess.run(['codesign', '--force', '--sign', '-', '--signature-size', '8', str(binary)], check=True)
 env = os.environ.copy()
 env['ULTRALIGHT_UI_AUDIT_DATA_ROOT'] = str(out / 'data')
 env['ULTRALIGHT_UI_AUDIT_OUTPUT'] = str(out)

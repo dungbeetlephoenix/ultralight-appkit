@@ -5,8 +5,12 @@ import platform
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 TARGET = platform.machine() + '-apple-macosx14.0'
+SIGNATURE_CMS_RESERVE_BYTES = 8
+# Selector references are fixed up at load time, then kept read-only by dyld.
+# Packing them in DATA_CONST also avoids an otherwise mostly empty DATA page.
 FLAGS = ['-swift-version', '5', '-Osize', '-whole-module-optimization', '-gnone',
          '-Xfrontend', '-disable-reflection-names',
+         '-Xlinker', '-const_selrefs',
          '-Xlinker', '-dead_strip', '-Xlinker', '-x']
 
 

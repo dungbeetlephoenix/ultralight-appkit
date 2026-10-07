@@ -7,7 +7,7 @@ import pathlib
 import plistlib
 import subprocess
 import sys
-from build_config import FLAGS, ROOT, TARGET, source_hashes
+from build_config import FLAGS, ROOT, TARGET, SIGNATURE_CMS_RESERVE_BYTES, source_hashes
 
 
 
@@ -46,8 +46,13 @@ def main():
                 LSUIElement=False, NSSupportsAutomaticTermination=False)
     (contents / 'Info.plist').write_bytes(plistlib.dumps(info, fmt=plistlib.FMT_BINARY))
     run('strip', '-rSTx', '-N', str(binary))
-    run('codesign', '--force', '--sign', '-', '--timestamp=none', str(app))
+    # Ad-hoc signing has no CMS payload. Use a minimal positive reservation
+    # (zero selects the 18 KB default); codesign sizes all hashes and seals itself.
+    # Developer ID signing would need the default, larger certificate reservation.
+    run('codesign', '--force', '--sign', '-', '--signature-size',
+        str(SIGNATURE_CMS_RESERVE_BYTES), '--timestamp=none', str(app))
     run('codesign', '--verify', '--strict', str(app))
+    signature_gate = json.loads(run(sys.executable, str(ROOT / 'Tests/signing/verify.py'), str(app)))
     files = sorted(p for p in app.rglob('*') if p.is_file())
     report = {
         'binary_bytes': binary.stat().st_size,
@@ -57,12 +62,14 @@ def main():
         'git_head': run('git', 'rev-parse', 'HEAD'),
         'source_sha256': checked_sources,
         'flags': FLAGS,
+        'signature_cms_reserve_bytes': SIGNATURE_CMS_RESERVE_BYTES,
+        'signature_gate': signature_gate,
         'files': {str(p.relative_to(app)): {'bytes': p.stat().st_size,
                    'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in files},
         'signature': 'ad-hoc; not Developer ID signed or notarized',
     }
-    if report['binary_bytes'] > 272000 or report['app_bytes'] > 275000:
-        raise SystemExit('Release exceeds the 272,000-byte binary / 275,000-byte app budgets.')
+    if report['binary_bytes'] > 250000 or report['app_bytes'] > 250000:
+        raise SystemExit('Release exceeds the 250,000-byte binary / app budgets.')
     if args.dmg:
         dmg = output / 'Ultralight.dmg'
         command = ['hdiutil', 'create', '-ov', '-volname', 'Ultralight', '-srcfolder',

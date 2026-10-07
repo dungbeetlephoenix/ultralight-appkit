@@ -18,7 +18,8 @@ let package = Package(
                              .when(configuration: .release))
             ],
             linkerSettings: [
-                .unsafeFlags(["-Xlinker", "-dead_strip", "-Xlinker", "-x"],
+                .unsafeFlags(["-Xlinker", "-const_selrefs",
+                              "-Xlinker", "-dead_strip", "-Xlinker", "-x"],
                              .when(configuration: .release))
             ]
         )

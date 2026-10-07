@@ -22,7 +22,7 @@ if compiled.returncode:
     print((out / 'compile.log').read_text()); print(out); sys.exit(compiled.returncode)
 if os.environ.get('ULTRALIGHT_AUDIT_STRIP') == '1':
     subprocess.run(['strip', '-rSTx', '-N', str(out / 'continuity-audit')], check=True)
-    subprocess.run(['codesign', '--force', '--sign', '-', str(out / 'continuity-audit')], check=True)
+    subprocess.run(['codesign', '--force', '--sign', '-', '--signature-size', '8', str(out / 'continuity-audit')], check=True)
 env = os.environ.copy(); env['ULTRALIGHT_PLAYBACK_AUDIT_OUTPUT'] = str(out)
 with (out / 'run.log').open('w') as log: result = subprocess.run([str(out / 'continuity-audit')], env=env, stdout=log, stderr=subprocess.STDOUT, timeout=30)
 print((out / 'run.log').read_text()); print(json.dumps({'output': str(out), 'run_exit': result.returncode}))

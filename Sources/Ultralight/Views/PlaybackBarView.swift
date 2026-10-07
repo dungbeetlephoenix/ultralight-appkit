@@ -97,6 +97,8 @@ final class PlaybackBarView: NSView {
             uiConstraint(playBtn, .height, nil, .notAnAttribute, .equal, 32),
             uiConstraint(volBar, .width, nil, .notAnAttribute, .equal, 60),
             uiConstraint(volBar, .height, nil, .notAnAttribute, .equal, 4),
+            // Keep transport beside EQ and volume; only the leading spacer expands.
+            uiConstraint(spacer2, .width, nil, .notAnAttribute, .equal, 0),
         ])
     }
 

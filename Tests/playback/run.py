@@ -31,7 +31,7 @@ if compile_result.returncode:
     print((out / 'compile.log').read_text()); print(str(out)); sys.exit(compile_result.returncode)
 if os.environ.get('ULTRALIGHT_AUDIT_STRIP') == '1':
     subprocess.run(['strip', '-rSTx', '-N', str(out / 'playback-audit')], check=True)
-    subprocess.run(['codesign', '--force', '--sign', '-', str(out / 'playback-audit')], check=True)
+    subprocess.run(['codesign', '--force', '--sign', '-', '--signature-size', '8', str(out / 'playback-audit')], check=True)
 env = os.environ.copy(); env['ULTRALIGHT_PLAYBACK_AUDIT_OUTPUT'] = str(out); env['ULTRALIGHT_PLAYBACK_AUDIT_MODE'] = args.mode
 with (out / 'run.log').open('w') as log:
     result = subprocess.run([str(out / 'playback-audit')], env=env, stdout=log, stderr=subprocess.STDOUT, timeout=60)

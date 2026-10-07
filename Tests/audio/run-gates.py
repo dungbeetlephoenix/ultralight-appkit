@@ -44,7 +44,7 @@ extension AudioEngine {
         sys.exit(result.returncode)
     if strip_n:
         subprocess.run(['strip', '-rSTx', '-N', str(exe)], check=True)
-        subprocess.run(['codesign', '--force', '--sign', '-', '--timestamp=none', str(exe)], check=True)
+        subprocess.run(['codesign', '--force', '--sign', '-', '--signature-size', '8', '--timestamp=none', str(exe)], check=True)
         subprocess.run(['codesign', '--verify', '--strict', str(exe)], check=True)
     env = dict(os.environ, ULTRALIGHT_GATE_ROOT=str(scratch), ULTRALIGHT_GATE_BASELINE="1" if baseline else "0")
     result = subprocess.run([str(exe)], env=env)

@@ -26,7 +26,7 @@ if compiled.returncode:
     raise SystemExit(compiled.returncode)
 if os.environ.get('ULTRALIGHT_AUDIT_STRIP') == '1':
     subprocess.run(['strip', '-rSTx', '-N', str(binary)], check=True)
-    subprocess.run(['codesign', '--force', '--sign', '-', str(binary)], check=True)
+    subprocess.run(['codesign', '--force', '--sign', '-', '--signature-size', '8', str(binary)], check=True)
 with (out / 'run.log').open('w') as log:
     result = subprocess.run([str(binary), str(out)], stdout=log, stderr=subprocess.STDOUT, timeout=20)
 print((out / 'run.log').read_text())

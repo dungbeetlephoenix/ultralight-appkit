@@ -26,7 +26,7 @@ extension AudioEngine {
                     str(engine), str(HERE / 'AllocationAudit.swift'), '-o', str(binary)], check=True)
     subprocess.run(['strip', '-rSTx', '-N', str(binary)], check=True)
     for file in [library, binary]:
-        subprocess.run(['codesign', '--force', '--sign', '-', '--timestamp=none', str(file)], check=True)
+        subprocess.run(['codesign', '--force', '--sign', '-', '--signature-size', '8', '--timestamp=none', str(file)], check=True)
         subprocess.run(['codesign', '--verify', '--strict', str(file)], check=True)
     result = subprocess.run([str(binary)], cwd=scratch)
     raise SystemExit(result.returncode)

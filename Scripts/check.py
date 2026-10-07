@@ -4,7 +4,7 @@ import json
 import os
 import subprocess
 import sys
-from build_config import FLAGS, ROOT, source_hashes
+from build_config import FLAGS, ROOT, SIGNATURE_CMS_RESERVE_BYTES, source_hashes
 
 
 def main():
@@ -43,7 +43,8 @@ def main():
     stable = snapshot == source_hashes()
     passed = len(statuses) == len(jobs) and not any(statuses.values()) and stable
     report = {'passed': passed, 'source_stable': stable, 'suites': statuses,
-              'source_sha256': snapshot, 'flags': FLAGS, 'strip_n': True}
+              'source_sha256': snapshot, 'flags': FLAGS, 'strip_n': True,
+              'signature_cms_reserve_bytes': SIGNATURE_CMS_RESERVE_BYTES}
     (output / 'results.json').write_text(json.dumps(report, indent=2) + '\n')
     if not passed:
         raise SystemExit('Release gates failed or source changed during verification.')
