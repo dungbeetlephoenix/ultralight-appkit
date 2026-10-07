@@ -4,6 +4,7 @@ import CoreAudio
 final class MenuBarManager: NSObject {
     private var statusItem: NSStatusItem?
     private weak var state: AppState?
+    weak var playerWindow: NSWindow?
 
     func setup(state: AppState) {
         self.state = state
@@ -85,7 +86,7 @@ final class MenuBarManager: NSObject {
     }
 
     @objc private func toggleWindow() {
-        guard let window = NSApplication.shared.windows.first else { return }
+        guard let window = playerWindow else { return }
         if window.isVisible {
             window.orderOut(nil)
         } else {
@@ -95,7 +96,7 @@ final class MenuBarManager: NSObject {
     }
 
     @objc private func showWindow() {
-        guard let window = NSApplication.shared.windows.first else { return }
+        guard let window = playerWindow else { return }
         window.makeKeyAndOrderFront(nil)
         NSApplication.shared.activate(ignoringOtherApps: true)
     }

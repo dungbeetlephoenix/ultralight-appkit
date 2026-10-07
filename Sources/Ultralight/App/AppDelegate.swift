@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSAlert(error: error).beginSheetModal(for: window)
         }
 
+        menuBarManager.playerWindow = mainWindow
         menuBarManager.setup(state: AppState.shared)
         mediaKeyHandler.setup(state: AppState.shared)
     }

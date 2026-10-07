@@ -40,6 +40,17 @@ func uiConstrain(_ view: NSView, _ attribute: NSLayoutConstraint.Attribute,
     NSButton(title: text, target: nil, action: nil)
 }
 
+@inline(never) func uiDescribe(_ control: NSControl, _ label: String) {
+    control.cell?.setAccessibilityLabel(label)
+    control.toolTip = label
+}
+
+@inline(never) func uiToggleState(_ button: NSButton, _ value: Bool) {
+    button.cell?.setAccessibilityRole(.checkBox)
+    button.cell?.setAccessibilityValue(value)
+    if let cell = button.cell { NSAccessibility.post(element: cell, notification: .valueChanged) }
+}
+
 @inline(never) func uiStyleLabel(_ label: NSTextField, _ size: CGFloat, _ weight: NSFont.Weight, _ color: UInt) {
     label.font = NSFont.monospacedSystemFont(ofSize: size, weight: weight)
     label.textColor = NSColor(hex: color)

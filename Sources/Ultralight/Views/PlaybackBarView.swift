@@ -14,6 +14,15 @@ func makePlaybackBarView(frame: NSRect = .zero) -> NSView {
     let eqBtn2 = uiButton("EQ")
     let volBar = ProgressBarView()
     let volPctLabel = uiLabel("80%")
+    uiDescribe(playBtn, "Play")
+    uiDescribe(prevBtn, "Previous track")
+    uiDescribe(nextBtn, "Next track")
+    uiDescribe(shfBtn, "Shuffle")
+    uiDescribe(rptBtn, "Repeat")
+    uiDescribe(eqBtn2, "Equalizer")
+    uiDescribe(progressBar, "Playback position, seconds")
+    uiDescribe(volBar, "Volume, percent")
+    volBar.maxValue = 100
     var cancellables = [AnyCancellable]()
     let panel = uiContainer(border: .maxY, frame: frame)
     uiBackground(panel, 0x0e0e0e)
@@ -100,21 +109,31 @@ func makePlaybackBarView(frame: NSRect = .zero) -> NSView {
     state.$duration.sinkOnMain { [weak panel] d in
         guard panel != nil else { return }
         durationLabel.stringValue = formatPlaybackTime(d)
+        progressBar.maxValue = max(0, d)
+        progressBar.isEnabled = d > 0
     }.store(in: &cancellables)
 
     state.$isPlaying.sinkOnMain { [weak panel] p in
         guard panel != nil else { return }
         playBtn.title = p ? "⏸" : "▶"
+        uiDescribe(playBtn, p ? "Pause" : "Play")
     }.store(in: &cancellables)
 
     state.$shuffle.sinkOnMain { [weak panel] s in
         guard panel != nil else { return }
+        uiToggleState(shfBtn, s)
         shfBtn.contentTintColor = s ? NSColor(hex: 0x4a9eff) : NSColor(hex: 0x444444)
     }.store(in: &cancellables)
 
     state.$repeatMode.sinkOnMain { [weak panel] r in
         guard panel != nil else { return }
+        uiToggleState(rptBtn, r)
         rptBtn.contentTintColor = r ? NSColor(hex: 0x4a9eff) : NSColor(hex: 0x444444)
+    }.store(in: &cancellables)
+
+    state.$showEQ.sinkOnMain { [weak panel] visible in
+        guard panel != nil else { return }
+        uiToggleState(eqBtn2, visible)
     }.store(in: &cancellables)
 
     state.$volume.sinkOnMain { [weak panel] v in
@@ -139,8 +158,15 @@ private func formatPlaybackTime(_ s: Double) -> String {
 }
 
 // Clickable progress/volume bar with optional waveform
-final class ProgressBarView: NSView {
-    var progress: Double = 0 { didSet { needsDisplay = true } }
+class ProgressBarView: NSSlider {
+    override var isFlipped: Bool { false }
+    var progress: Double {
+        get { maxValue > minValue ? (doubleValue - minValue) / (maxValue - minValue) : 0 }
+        set { doubleValue = minValue + newValue * (maxValue - minValue); needsDisplay = true }
+    }
+    override var intrinsicContentSize: NSSize { NSSize(width: NSView.noIntrinsicMetric, height: NSView.noIntrinsicMetric) }
+    override var alignmentRectInsets: NSEdgeInsets { NSEdgeInsetsZero }
+    override var acceptsFirstResponder: Bool { isEnabled }
     var color: NSColor = NSColor(hex: 0x4a9eff)
     var waveformData: [Float] = [] { didSet { needsDisplay = true } }
     var onClick: ((Double) -> Void)?
@@ -148,7 +174,14 @@ final class ProgressBarView: NSView {
     override init(frame: NSRect) {
         super.init(frame: frame)
         wantsLayer = true
+        minValue = 0
+        maxValue = 1
+        isContinuous = true
+        target = self
+        action = #selector(sliderChanged)
     }
+
+    @objc private func sliderChanged() { needsDisplay = true; onClick?(progress) }
 
     required init?(coder: NSCoder) { fatalError() }
 
@@ -189,6 +222,8 @@ final class ProgressBarView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        guard isEnabled else { return }
+        window?.makeFirstResponder(self)
         let pt = convert(event.locationInWindow, from: nil)
         let pct = max(0, min(1, Double(pt.x / bounds.width)))
         onClick?(pct)

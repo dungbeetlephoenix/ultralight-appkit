@@ -1,10 +1,13 @@
 import AppKit
+import Combine
 
 final class SettingsWindow: NSWindow, NSTableViewDataSource, NSTableViewDelegate {
     private static var instance: SettingsWindow?
+    private let tableView = NSTableView()
 
     static func show() {
         if let existing = instance {
+            existing.tableView.reloadData()
             existing.makeKeyAndOrderFront(nil)
             return
         }
@@ -35,7 +38,6 @@ final class SettingsWindow: NSWindow, NSTableViewDataSource, NSTableViewDelegate
 
         // Folder list
         let scrollView = NSScrollView()
-        let tableView = NSTableView()
         tableView.backgroundColor = NSColor(hex: 0x0a0a0a)
         tableView.headerView = nil
         tableView.rowHeight = 22
@@ -47,6 +49,9 @@ final class SettingsWindow: NSWindow, NSTableViewDataSource, NSTableViewDelegate
 
         tableView.dataSource = self
         tableView.delegate = self
+        uiRetain([AppState.shared.$folders.sinkOnMain { [weak tableView] _ in
+            tableView?.reloadData()
+        }], on: content)
 
         scrollView.documentView = tableView
         scrollView.hasVerticalScroller = true
@@ -97,6 +102,7 @@ final class SettingsWindow: NSWindow, NSTableViewDataSource, NSTableViewDelegate
         label.lineBreakMode = .byTruncatingMiddle
 
         let removeBtn = uiButton("✕")
+        uiDescribe(removeBtn, "Remove folder " + folder)
         uiStyleButton(removeBtn, 9, .regular, false, 0x555555)
 
         uiAction(removeBtn) { [weak tableView] in

@@ -7,6 +7,7 @@ func makeHeaderView() -> NSView {
     let artistLabel = uiLabel("")
     let formatBadge = uiLabel("")
     let settingsBtn = uiButton("⚙")
+    uiDescribe(settingsBtn, "Settings")
     var cancellables = [AnyCancellable]()
     let panel = uiContainer(border: .minY)
     uiBackground(panel, 0x0e0e0e)

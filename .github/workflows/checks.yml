@@ -1,0 +1,68 @@
+name: Source and compatibility checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tooling:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Exercise failed checks and release rollback
+        run: python3 -m unittest discover -s Tests/tooling -v
+
+  build:
+    runs-on: macos-26
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Verify the selected compiler
+        run: |
+          xcodebuild -version
+          xcrun swift --version | tee compiler.txt
+          python3 -c 'from pathlib import Path; assert "Apple Swift version 6.3.3 " in Path("compiler.txt").read_text(), "Expected Apple Swift 6.3.3"'
+      - name: Build from a fresh SwiftPM directory
+        run: swift build --scratch-path "$RUNNER_TEMP/ultralight-debug"
+      - name: Compile the signed compatibility fixture
+        run: |
+          python3 Tests/compatibility/run.py build --bundle artifacts/compatibility
+          tar -czf compatibility.tar.gz -C artifacts compatibility
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: signed-compatibility-fixture
+          path: compatibility.tar.gz
+          if-no-files-found: error
+
+  compatibility:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [14, 26]
+    runs-on: macos-${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: signed-compatibility-fixture
+      - name: Run the identical compiled fixture on this OS
+        run: |
+          tar -xzf compatibility.tar.gz
+          python3 Tests/compatibility/run.py run --bundle compatibility --output artifacts/runtime --expect-os '${{ matrix.os }}'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: runtime-macos-${{ matrix.os }}
+          path: artifacts/runtime
+          if-no-files-found: error
+

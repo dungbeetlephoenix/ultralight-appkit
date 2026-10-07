@@ -81,7 +81,9 @@ final class MainWindow: NSWindow {
 
     private func setupKeyboard() {
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard self?.isKeyWindow == true else { return event }
+            guard let self, self.isKeyWindow else { return event }
+            // Native controls and field editors handle their own navigation keys.
+            if self.firstResponder is NSControl || self.firstResponder is NSTextView { return event }
             let state = AppState.shared
             let cmd = event.modifierFlags.contains(.command)
             switch event.keyCode {

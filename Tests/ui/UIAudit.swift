@@ -6,6 +6,7 @@ import Foundation
 struct UIAudit {
     static var checks: [[String: Any]] = []
     static var geometryChecks: [[String: Any]] = []
+    static var finishingChecks: [[String: Any]] = []
     static var lifecycleChecks: [[String: Any]] = []
     static var observations: [[String: Any]] = []
     static var layouts: [[String: Any]] = []
@@ -142,6 +143,162 @@ struct UIAudit {
         }
     }
 
+    static func finishing(_ name: String, _ condition: Bool) {
+        finishingChecks.append(["name": name, "pass": condition])
+        print("\(condition ? "PASS" : "FAIL") finishing \(name)")
+    }
+
+    static func inspectFinishing(_ window: MainWindow) {
+        let state = AppState.shared
+        state.tracks = []
+        state.currentTrack = nil
+        state.isPlaying = false
+        state.duration = 120
+        state.currentTime = 30
+        state.volume = 0.5
+        state.eqProfile = .flat
+        pump(window)
+        let all = descendants(window.contentView!)
+        func control(_ label: String) -> NSControl? { all.compactMap { $0 as? NSControl }.first { $0.cell?.accessibilityLabel() == label } }
+        // Native AppKit controls export their cell as the unignored AX element.
+        func element(_ control: NSControl) -> NSCell? { NSAccessibility.unignoredDescendant(of: control) as? NSCell }
+        func action(_ control: NSControl, _ name: NSAccessibility.Action) -> Bool {
+            guard let cell = element(control), cell.accessibilityActionNames().contains(name) else { return false }
+            cell.accessibilityPerformAction(name)
+            return true
+        }
+        func number(_ value: Any?) -> Double? { (value as? NSNumber)?.doubleValue }
+        let expected = ["Play", "Previous track", "Next track", "Shuffle", "Repeat", "Equalizer", "Settings"]
+        finishing("glyph buttons expose readable labels and tooltips", expected.allSatisfy { label in
+            guard let button = control(label) as? NSButton else { return false }
+            return button.toolTip == label
+        })
+        state.isPlaying = true; pump(window)
+        finishing("play label follows playback state", button(window.playbackBar, "⏸")?.cell?.accessibilityLabel() == "Pause")
+        state.isPlaying = false; pump(window)
+        for (label, get, set) in [
+            ("Shuffle", { state.shuffle }, { (v: Bool) in state.shuffle = v }),
+            ("Repeat", { state.repeatMode }, { (v: Bool) in state.repeatMode = v }),
+            ("Equalizer", { state.showEQ }, { (v: Bool) in state.showEQ = v }),
+            ("Bypass equalizer", { state.eqBypassed }, { (v: Bool) in state.eqBypassed = v }),
+        ] {
+            guard let button = control(label) as? NSButton else { finishing(label + " button exists", false); continue }
+            set(false); pump(window)
+            finishing(label + " exposes off state", number(element(button)?.accessibilityValue()) == 0)
+            let pressed = action(button, .press); pump(window)
+            finishing(label + " accessible press updates state", pressed && get() && number(element(button)?.accessibilityValue()) == 1)
+        }
+        state.showEQ = true
+        state.eqBypassed = false
+        pump(window)
+        guard let seek = control("Playback position, seconds") as? ProgressBarView,
+              let volume = control("Volume, percent") as? ProgressBarView,
+              let preamp = control("Preamp, decibels") as? ProgressBarView else {
+            finishing("native slider controls exist", false); return
+        }
+        let bands = descendants(window.eqPanelView).compactMap { $0 as? EQSliderView }
+        let sliders: [ProgressBarView] = [seek, volume, preamp] + bands
+        finishing("all custom controls expose slider roles", sliders.count == 11 && sliders.allSatisfy { element($0)?.accessibilityRole() == .slider })
+        finishing("slider ranges use seconds percent and decibels", number(element(seek)?.accessibilityMinValue()) == 0 && number(element(seek)?.accessibilityMaxValue()) == 120 && number(element(volume)?.accessibilityMaxValue()) == 100 && ([preamp] + bands).allSatisfy { number(element($0)?.accessibilityMinValue()) == -12 && number(element($0)?.accessibilityMaxValue()) == 12 })
+        finishing("slider accessible values match stored state", number(element(seek)?.accessibilityValue()) == 30 && number(element(volume)?.accessibilityValue()) == 50 && number(element(preamp)?.accessibilityValue()) == 0)
+        finishing("EQ bands have distinct accessible frequency labels", Set(bands.compactMap { element($0)?.accessibilityLabel() }).count == 8)
+        finishing("all slider controls accept keyboard focus", sliders.allSatisfy { $0.acceptsFirstResponder && window.makeFirstResponder($0) })
+
+        let originalSeek = seek.onClick
+        var seekFraction: Double?
+        seek.onClick = { seekFraction = $0 }
+        let oldSeek = seek.doubleValue
+        let seekIncremented = action(seek, .increment)
+        finishing("seek accessible increment reaches seek callback", seekIncremented && seek.doubleValue > oldSeek && seekFraction == seek.progress)
+        _ = action(seek, .decrement)
+        finishing("seek accessible decrement stays in range", seek.doubleValue < oldSeek + 1 && seek.doubleValue >= 0 && seekFraction == seek.progress)
+        seek.onClick = originalSeek
+
+        let volumeIncremented = action(volume, .increment); pump(window)
+        finishing("volume accessible adjustment reaches model", volumeIncremented && state.volume > 0.5 && abs(volume.doubleValue - Double(state.volume) * 100) < 0.001)
+        let preampIncremented = action(preamp, .increment); pump(window)
+        finishing("preamp accessible adjustment reaches model", preampIncremented && state.eqProfile.preamp > 0 && abs(preamp.doubleValue - Double(state.eqProfile.preamp)) < 0.001)
+        if let band = bands.first {
+            let adjusted = action(band, .increment); pump(window)
+            finishing("EQ accessible adjustment reaches correct band", adjusted && state.eqProfile.bands[0].gain > 0 && state.eqProfile.bands.dropFirst().allSatisfy { $0.gain == 0 })
+            band.value = 12
+            _ = action(band, .increment)
+            finishing("EQ adjustment clamps at maximum", band.value == 12)
+        }
+        state.volume = 1; pump(window)
+        _ = action(volume, .increment); pump(window)
+        finishing("volume adjustment clamps at maximum", state.volume == 1 && volume.doubleValue == 100)
+        state.duration = 0; pump(window)
+        finishing("empty transport disables seeking", !seek.isEnabled && !seek.acceptsFirstResponder)
+        state.duration = 120; state.currentTime = 30; state.volume = 0.5; pump(window)
+        func key(_ code: UInt16, _ character: String) -> NSEvent {
+            NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                            windowNumber: window.windowNumber, context: nil, characters: character,
+                            charactersIgnoringModifiers: character, isARepeat: false, keyCode: code)!
+        }
+        window.makeFirstResponder(volume)
+        volume.keyDown(with: key(124, String(UnicodeScalar(NSRightArrowFunctionKey)!))); pump(window)
+        finishing("focused volume responds to keyboard", state.volume > 0.5)
+        NSApplication.shared.setActivationPolicy(.accessory)
+        window.makeKeyAndOrderFront(nil)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        let activationDeadline = Date(timeIntervalSinceNow: 1)
+        while Date() < activationDeadline {
+            if let event = NSApplication.shared.nextEvent(matching: .any, until: Date(timeIntervalSinceNow: 0.02), inMode: .default, dequeue: true) {
+                NSApplication.shared.sendEvent(event)
+            }
+        }
+        pump(window)
+        finishing("isolated test window becomes key for event routing", window.isKeyWindow)
+        window.makeFirstResponder(bands[0])
+        state.eqProfile = .flat
+        state.volume = 0.5; pump(window)
+        NSApplication.shared.sendEvent(key(126, String(UnicodeScalar(NSUpArrowFunctionKey)!))); pump(window)
+        finishing("global volume shortcut yields to focused slider", state.eqProfile.bands[0].gain > 0 && state.volume == 0.5)
+        if let equalizerButton = control("Equalizer") as? NSButton {
+            state.showEQ = false; pump(window)
+            let focused = window.makeFirstResponder(equalizerButton)
+            NSApplication.shared.sendEvent(key(49, " ")); pump(window)
+            finishing("focused glyph button receives Space without toggling playback", focused && state.showEQ && !state.isPlaying && !state.audioEngine.isPlaying)
+        } else {
+            finishing("focused glyph button receives Space without toggling playback", false)
+        }
+        window.makeFirstResponder(window)
+        state.volume = 0.5; pump(window)
+        NSApplication.shared.sendEvent(key(126, String(UnicodeScalar(NSUpArrowFunctionKey)!))); pump(window)
+        finishing("unfocused playback volume shortcut still works", abs(state.volume - 0.55) < 0.0001)
+
+        SettingsWindow.show()
+        guard let settings = NSApplication.shared.windows.compactMap({ $0 as? SettingsWindow }).first,
+              let folderTable = descendants(settings.contentView!).compactMap({ $0 as? NSTableView }).first else {
+            finishing("settings window and table exist", false); return
+        }
+        let folder = output.appendingPathComponent("Music A").path
+        state.folders = [folder]; pump(settings)
+        finishing("settings tracks external folder changes while open", folderTable.numberOfRows == 1)
+        let remove = descendants(settings.contentView!).compactMap { $0 as? NSButton }.first { $0.title == "✕" }
+        finishing("remove-folder action identifies its folder", remove?.cell?.accessibilityLabel() == "Remove folder " + folder && remove?.toolTip == "Remove folder " + folder)
+        settings.orderOut(nil)
+        state.folders = [folder, output.appendingPathComponent("Music B").path]
+        SettingsWindow.show()
+        finishing("reopening settings refreshes immediately", folderTable.numberOfRows == 2)
+        let manager = MenuBarManager() // Never setup: no status item or device enumeration.
+        manager.playerWindow = window
+        window.orderOut(nil)
+        _ = manager.perform(NSSelectorFromString("showWindow"))
+        finishing("Show Player targets main window with Settings present", window.isVisible && settings.isVisible)
+        _ = manager.perform(NSSelectorFromString("toggleWindow"))
+        finishing("player toggle leaves Settings visible", !window.isVisible && settings.isVisible)
+        _ = manager.perform(NSSelectorFromString("toggleWindow"))
+        finishing("player toggle restores main window", window.isVisible && settings.isVisible)
+        manager.playerWindow = nil
+        window.orderOut(nil)
+        _ = manager.perform(NSSelectorFromString("showWindow"))
+        finishing("missing player target does not select another window", !window.isVisible && settings.isVisible)
+        settings.orderOut(nil)
+        finishing("finishing checks leave audio stopped", !state.audioEngine.isPlaying)
+    }
+
     static func main() {
         let app = NSApplication.shared
         app.setActivationPolicy(.prohibited)
@@ -237,6 +394,7 @@ struct UIAudit {
         check("nil track resets header", window.title == "Ultralight" && !hasLabel(window.headerView, "Fallback Name") && !hasLabel(window.headerView, " M4A "))
         check("audio silent after UI", !state.audioEngine.isPlaying)
         inspectSubscriptionOwnership()
+        inspectFinishing(window)
         finish()
     }
 
@@ -244,11 +402,13 @@ struct UIAudit {
         let failed = checks.filter { ($0["pass"] as? Bool) != true }.count
         let geometryFailed = geometryChecks.filter { ($0["pass"] as? Bool) != true }.count
         let lifecycleFailed = lifecycleChecks.filter { ($0["pass"] as? Bool) != true }.count
-        let report: [String: Any] = ["checks": checks, "geometryChecks": geometryChecks, "geometryFailed": geometryFailed, "lifecycleChecks": lifecycleChecks, "lifecycleFailed": lifecycleFailed, "observations": observations, "layouts": layouts, "passed": checks.count - failed, "failed": failed, "scope": "Actual AppKit views, Combine bindings, target/action wiring, filtering, layout, and hidden-window bitmap rendering. Synthetic state only; playback was never started. ConfigStore redirected to isolated temporary storage."]
+        let finishingFailed = finishingChecks.filter { ($0["pass"] as? Bool) != true }.count
+        let report: [String: Any] = ["finishingChecks": finishingChecks, "finishingFailed": finishingFailed, "checks": checks, "geometryChecks": geometryChecks, "geometryFailed": geometryFailed, "lifecycleChecks": lifecycleChecks, "lifecycleFailed": lifecycleFailed, "observations": observations, "layouts": layouts, "passed": checks.count - failed, "failed": failed, "scope": "Actual AppKit views, Combine bindings, target/action wiring, filtering, layout, and hidden-window bitmap rendering. Synthetic state only; playback was never started. ConfigStore redirected to isolated temporary storage."]
         if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) { try? data.write(to: output.appendingPathComponent("results.json")) }
         print("RESULT \(checks.count - failed)/\(checks.count) checks passed; \(observations.count) observations")
         print("GEOMETRY \(geometryChecks.count - geometryFailed)/\(geometryChecks.count) checks passed")
         print("LIFECYCLE \(lifecycleChecks.count - lifecycleFailed)/\(lifecycleChecks.count) checks passed")
-        exit(failed == 0 && geometryFailed == 0 && lifecycleFailed == 0 ? 0 : 1)
+        print("FINISHING \(finishingChecks.count - finishingFailed)/\(finishingChecks.count) checks passed")
+        exit(failed == 0 && geometryFailed == 0 && lifecycleFailed == 0 && finishingFailed == 0 ? 0 : 1)
     }
 }

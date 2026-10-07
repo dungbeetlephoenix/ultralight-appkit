@@ -21,12 +21,12 @@ let package = Package(
             name: "Ultralight",
             path: "Sources/Ultralight",
             swiftSettings: [
-                // Keep type metadata: Combine's ObservableObject needs it.
-                // Property names and compiler debug information are unnecessary
-                // in a stripped release; debug builds remain fully inspectable.
+                // AppState publishes object changes explicitly; the observation
+                // gate verifies every property against native Combine ordering.
+                // Debug builds retain reflection and normal debug information.
                 .unsafeFlags(["-Osize", "-whole-module-optimization", "-gnone",
                               "-Xfrontend", "-enable-single-module-llvm-emission",
-                              "-Xfrontend", "-disable-reflection-names"],
+                              "-Xfrontend", "-disable-reflection-metadata"],
                              .when(configuration: .release))
             ],
             linkerSettings: [

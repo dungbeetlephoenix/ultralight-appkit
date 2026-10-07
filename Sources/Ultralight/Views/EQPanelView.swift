@@ -24,6 +24,12 @@ func makeEQPanelView(frame: NSRect = .zero) -> NSView {
     autoBtn.layer?.borderColor = NSColor(hex: 0x4a9eff).cgColor
     let rstBtn = makeEQButton("RST") { AppState.shared.eqProfile = .flat }
     let saveBtn = makeEQButton("SAVE") { AppState.shared.saveEQForCurrentTrack() }
+    uiDescribe(autoBtn, "Bypass equalizer")
+    uiDescribe(rstBtn, "Reset equalizer")
+    uiDescribe(saveBtn, "Save equalizer for this track")
+    uiDescribe(preampBar, "Preamp, decibels")
+    preampBar.minValue = -12
+    preampBar.maxValue = 12
     let btnStack = uiStack([autoBtn, rstBtn, saveBtn], .horizontal, 4)
 
     let spacer = NSView(); spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
@@ -99,6 +105,11 @@ func makeEQPanelView(frame: NSRect = .zero) -> NSView {
         preampLabel.stringValue = String(format: "%+.0f", profile.preamp)
     }.store(in: &cancellables)
 
+    state.$eqBypassed.sinkOnMain { [weak panel] bypassed in
+        guard panel != nil else { return }
+        uiToggleState(autoBtn, bypassed)
+    }.store(in: &cancellables)
+
     Publishers.CombineLatest(state.$currentTrack, state.$eqProfile)
         .sinkOnMain { [weak panel] track, _ in guard panel != nil else { return }; updateAnalysis(track: track, reasonLabel: reasonLabel, badgeContainer: badgeContainer, statsLabel: statsLabel) }
         .store(in: &cancellables)
@@ -163,8 +174,11 @@ private func makeEQBadge(_ text: String, color: UInt) -> NSView {
 }
 
 // Individual EQ band slider
-final class EQSliderView: NSView {
-    var value: Float = 0 { didSet { needsDisplay = true; gainLabel.stringValue = String(format: "%+.0f", value) } }
+final class EQSliderView: ProgressBarView {
+    var value: Float {
+        get { floatValue }
+        set { floatValue = newValue; needsDisplay = true; gainLabel.stringValue = String(format: "%+.0f", newValue) }
+    }
     private let gainLabel = uiLabel("+0")
     private let index: Int
 
@@ -173,6 +187,11 @@ final class EQSliderView: NSView {
         let freqLabel = uiLabel(label)
         super.init(frame: .zero)
         wantsLayer = true
+        minValue = -12
+        maxValue = 12
+        isVertical = true
+        uiDescribe(self, label + " Hz equalizer, decibels")
+        onClick = { [weak self] pct in self?.setGain(Float(pct) * 24 - 12) }
 
         uiStyleLabel(gainLabel, 7, .medium, 0x333333)
         gainLabel.alignment = .center
@@ -191,8 +210,6 @@ final class EQSliderView: NSView {
     required init?(coder: NSCoder) { fatalError() }
 
     override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-
         let sliderArea = NSRect(x: 0, y: 12, width: bounds.width, height: bounds.height - 24)
         let centerX = bounds.width / 2
         let centerY = sliderArea.midY
@@ -224,11 +241,15 @@ final class EQSliderView: NSView {
     override func mouseDragged(with event: NSEvent) { drag(event) }
 
     private func drag(_ event: NSEvent) {
+        window?.makeFirstResponder(self)
         let pt = convert(event.locationInWindow, from: nil)
         let sliderArea = NSRect(x: 0, y: 12, width: bounds.width, height: bounds.height - 24)
         let pct = Float(max(0, min(1, (pt.y - sliderArea.minY) / sliderArea.height)))
-        let newValue = -12 + pct * 24
-        value = newValue
-        AppState.shared.eqProfile.bands[index].gain = newValue
+        setGain(-12 + pct * 24)
+    }
+
+    private func setGain(_ gain: Float) {
+        value = gain
+        AppState.shared.eqProfile.bands[index].gain = gain
     }
 }

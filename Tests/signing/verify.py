@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify the release seal and reject tampered copies without launching the app."""
+import argparse
 import json
 import pathlib
 import plistlib
@@ -37,11 +38,35 @@ def immutable_method_lists(data, offset, length):
     return lists
 
 
-def verify(app):
+def signing_policy(app, mode):
+    display = subprocess.run(['codesign', '-d', '--verbose=4', str(app)],
+                             capture_output=True, text=True, check=True)
+    details = display.stdout + display.stderr
+    if mode == 'adhoc':
+        require('Signature=adhoc' in details, 'Expected native ad-hoc signing.')
+    else:
+        require('Authority=Developer ID Application:' in details,
+                'Public signing requires a Developer ID Application identity.')
+        require('runtime)' in details and 'Timestamp=' in details,
+                'Developer ID release requires hardened runtime and a secure timestamp.')
+        requirement = ('anchor apple generic and '
+                       'certificate 1[field.1.2.840.113635.100.6.2.6] exists and '
+                       'certificate leaf[field.1.2.840.113635.100.6.1.13] exists')
+        trusted = subprocess.run(['codesign', '--verify', '--strict', '-R', requirement, str(app)],
+                                 capture_output=True)
+        require(trusted.returncode == 0, 'Signature is not an Apple-trusted Developer ID Application chain.')
+    return {'mode': mode, 'hardened_runtime': 'runtime)' in details,
+            'secure_timestamp': 'Timestamp=' in details}
+
+
+def verify(app, mode='adhoc'):
     app = pathlib.Path(app).resolve()
     require(valid(app), 'Release signature is invalid.')
+    policy = signing_policy(app, mode)
     executable = pathlib.Path('Contents/MacOS/Ultralight')
     data = (app / executable).read_bytes()
+    require(len(data) <= 200000 and sum(p.stat().st_size for p in app.rglob('*') if p.is_file()) <= 200000,
+            'Signed executable/app exceeds 200,000 bytes; certificate and notarization overhead count toward the same budget.')
     require(struct.unpack_from('<I', data)[0] == 0xfeedfacf, 'Expected thin 64-bit Mach-O.')
     cursor = 32
     text_offset = None
@@ -57,7 +82,8 @@ def verify(app):
             offset, reserved = struct.unpack_from('<II', data, cursor + 8)
             magic, used = struct.unpack_from('>II', data, offset)
             require(magic == 0xfade0cc0 and used <= reserved, 'Invalid signature envelope.')
-            require(reserved - used < 16, 'Ad-hoc signature has unused certificate reservation.')
+            if mode == 'adhoc':
+                require(reserved - used < 16, 'Ad-hoc signature has unused certificate reservation.')
             signature = {'used_bytes': used, 'reserved_bytes': reserved}
         elif command == 0x19:  # LC_SEGMENT_64
             segment = data[cursor + 8:cursor + 24].split(b'\0')[0].decode()
@@ -109,7 +135,7 @@ def verify(app):
                 path.write_bytes(plistlib.dumps(info, fmt=plistlib.FMT_BINARY))
             rejected[kind] = not valid(copied)
     require(all(rejected.values()), 'Signature accepted modified content.')
-    return {'passed': True, 'clean_verified': True, 'tampered_rejected': rejected,
+    return {'passed': True, 'clean_verified': True, 'tampered_rejected': rejected, 'signing_policy': policy,
             'signature': signature,
             'layout': {'segments': segments, 'swift_metadata_in_text': True,
                        'immutable_method_lists': method_lists,
@@ -117,4 +143,8 @@ def verify(app):
 
 
 if __name__ == '__main__':
-    print(json.dumps(verify(sys.argv[1]), sort_keys=True))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('app')
+    parser.add_argument('--mode', choices=['adhoc', 'developer-id'], default='adhoc')
+    args = parser.parse_args()
+    print(json.dumps(verify(args.app, args.mode), sort_keys=True))

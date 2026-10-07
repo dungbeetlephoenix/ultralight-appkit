@@ -1,0 +1,31 @@
+name: Desktop release verification
+
+# The exact visual and audio gates require the documented desktop environment.
+# This trusted, manual job never runs arbitrary fork code on a personal runner.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, macOS, ARM64, ultralight-desktop]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Require the reference desktop and compiler
+        run: |
+          python3 -c 'import platform; assert platform.mac_ver()[0] == "26.7", "Expected macOS 26.7 reference desktop"'
+          xcrun swift --version
+      - name: Verify, build, sign, package, and measure
+        run: python3 Scripts/release.py --dmg UDZO
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: desktop-release-evidence
+          path: |
+            artifacts/release
+            artifacts/gates
+          if-no-files-found: error

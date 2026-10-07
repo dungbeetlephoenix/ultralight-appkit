@@ -4,25 +4,29 @@ import Combine
 // AppKit controls and asynchronous completion handlers mutate state on the main thread.
 final class AppState: ObservableObject {
     static let shared = AppState()
+    // Explicit notifications preserve Combine's pre-mutation ordering without
+    // requiring release reflection descriptors. Tests/observation covers every
+    // published property and rejects new fields without notification coverage.
+    let objectWillChange = ObservableObjectPublisher()
 
-    @Published var tracks: [Track] = []
-    @Published var folders: [String] = []
-    @Published var searchQuery: String = ""
+    @Published var tracks: [Track] = [] { willSet { objectWillChange.send() } }
+    @Published var folders: [String] = [] { willSet { objectWillChange.send() } }
+    @Published var searchQuery: String = "" { willSet { objectWillChange.send() } }
 
-    @Published var currentTrack: Track?
-    @Published var isPlaying: Bool = false
-    @Published var currentTime: Double = 0
-    @Published var duration: Double = 0
-    @Published var volume: Float = 0.8 { didSet { audioEngine.setVolume(volume) } }
-    @Published var shuffle: Bool = false { didSet { if shuffle != oldValue { queueNextTrack() } } }
-    @Published var repeatMode: Bool = false { didSet { if repeatMode != oldValue { queueNextTrack() } } }
+    @Published var currentTrack: Track? { willSet { objectWillChange.send() } }
+    @Published var isPlaying: Bool = false { willSet { objectWillChange.send() } }
+    @Published var currentTime: Double = 0 { willSet { objectWillChange.send() } }
+    @Published var duration: Double = 0 { willSet { objectWillChange.send() } }
+    @Published var volume: Float = 0.8 { willSet { objectWillChange.send() } didSet { audioEngine.setVolume(volume) } }
+    @Published var shuffle: Bool = false { willSet { objectWillChange.send() } didSet { if shuffle != oldValue { queueNextTrack() } } }
+    @Published var repeatMode: Bool = false { willSet { objectWillChange.send() } didSet { if repeatMode != oldValue { queueNextTrack() } } }
 
-    @Published var eqProfile: EQProfile = .flat { didSet { audioEngine.applyEQ(eqProfile) } }
-    @Published var eqBypassed: Bool = false { didSet { audioEngine.setEQBypassed(eqBypassed) } }
-    @Published var showEQ: Bool = true
+    @Published var eqProfile: EQProfile = .flat { willSet { objectWillChange.send() } didSet { audioEngine.applyEQ(eqProfile) } }
+    @Published var eqBypassed: Bool = false { willSet { objectWillChange.send() } didSet { audioEngine.setEQBypassed(eqBypassed) } }
+    @Published var showEQ: Bool = true { willSet { objectWillChange.send() } }
 
-    @Published var spectrumData: [Float] = Array(repeating: 0, count: 32)
-    @Published var waveformData: [Float] = []
+    @Published var spectrumData: [Float] = Array(repeating: 0, count: 32) { willSet { objectWillChange.send() } }
+    @Published var waveformData: [Float] = [] { willSet { objectWillChange.send() } }
 
     let audioEngine = AudioEngine()
     private var timeTimer: Timer?
