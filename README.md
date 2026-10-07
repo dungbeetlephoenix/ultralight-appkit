@@ -2,7 +2,7 @@
 
 ![Ultralight](screenshot.png)
 
-A 235.3 KB native macOS music player (237.9 KB signed app; 114.7 KB download in the verified Apple-silicon build). AppKit, AVFoundation, Accelerate, and Combine; no third-party dependencies or bundled runtime.
+A 183.3 KB native macOS music player (185.8 KB signed app; 99.4 KB download in the verified Apple-silicon build). AppKit, AVFoundation, Accelerate, and Combine; no third-party dependencies or bundled runtime.
 
 - Local music library with recursive folder scanning and metadata.
 - Eight-band EQ and preamp, with saved per-track settings.
@@ -27,7 +27,7 @@ python3 Scripts/release.py --dmg UDZO
 
 The release is written to `artifacts/release/Ultralight.app`, with a DMG and a `size.json` containing exact sizes, source hashes, build flags, and file hashes. It is ad-hoc signed for local use, not Developer ID signed or notarized. Nothing is installed automatically.
 
-The release script compiles all production source files in one compiler invocation. This permits whole-program LLVM optimization and avoids the additional code produced by split object generation. SwiftPM release builds also enable single-module LLVM emission; use `swift build -c release -debug-info-format none` when comparing them. Do not substitute `-num-threads 0`: clean SwiftPM builds can fail with missing object files.
+The release script compiles all production source files together with full link-time optimization, then uses native linker layout and code sharing. SwiftPM release builds also enable single-module LLVM emission; use `swift build -c release -debug-info-format none --experimental-lto-mode full` when comparing them. SwiftPM must receive its own LTO option: putting only `-lto=llvm-full` in manifest compiler flags leaves it expecting the wrong object files. Do not substitute `-num-threads 0`, which also breaks clean builds.
 
 ## Quality and size gates
 
@@ -45,7 +45,9 @@ The release runs every gate before building and verifies that the source has not
 - Literal compatibility fixtures for every persisted field and deferred binding cancellation/order.
 - Zero warmed-up FFT allocations and at most one output allocation per live spectrum callback.
 - Native signature verification, including rejection of modified code and Info.plist copies.
+- Native pasteboard filtering, duplicate folders, Unicode identity, and subscription lifetimes.
+- Protected constant-data layout, immutable Objective-C method lists, and retained unwind/diagnostic metadata.
 
-Test fixtures and saved settings are isolated from your library. Test code and images are not shipped in the app. The verified Apple-silicon release budgets are 250,000 bytes each for the executable and signed app payload, and 120,000 bytes for the DMG. The current release passes 360 assertions plus allocation and signature gates. A failed gate or exceeded budget stops the release.
+Test fixtures and saved settings are isolated from your library. Test code and images are not shipped in the app. The verified Apple-silicon release budgets are 200,000 bytes each for the executable and signed app payload, and 120,000 bytes for the DMG. The current release passes 400 assertions plus allocation and signature/layout gates. A failed gate or exceeded budget stops the release.
 
 See [HILLCLIMB.md](HILLCLIMB.md) for measured results, retained optimizations, rejected experiments, and validation limits.
