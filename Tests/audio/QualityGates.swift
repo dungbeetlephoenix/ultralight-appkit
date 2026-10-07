@@ -58,6 +58,12 @@ import Combine
         check([a.bassEnergy, a.midEnergy, a.trebleEnergy, a.spectralCentroid, a.dynamicRange, a.peakLevel] == [0.125, 0.25, 0.625, 1234.5, 12.5, -0.5],
               "AnalysisResult all six literal scalar mappings")
         check(try sameJSON(a.suggestedEQ, p), "AnalysisResult literal suggested EQ mapping")
+        // Decode literal decimal tokens directly: rounding through Double/NSNumber
+        // first changes these Float results by one bit on opposite midpoint sides.
+        let preciseBand = try JSONDecoder().decode(EQBand.self, from: Data(#"{"frequency":310,"gain":0.50000002980232238769531250000000001,"bandwidth":1}"#.utf8))
+        check(preciseBand.gain.bitPattern == 0x3f000001, "EQBand Float rounds above midpoint exactly")
+        let preciseAnalysis = try JSONDecoder().decode(AnalysisResult.self, from: Data(#"{"bassEnergy":1.000000059604644775390624999999999,"midEnergy":0,"trebleEnergy":0,"spectralCentroid":0,"dynamicRange":0,"peakLevel":0,"suggestedEQ":{"bands":[],"preamp":0},"isBassHeavy":false,"isBright":false,"isCompressed":false,"isClipping":false,"isDynamic":false,"isThin":false,"isMuddy":false}"#.utf8))
+        check(preciseAnalysis.bassEnergy.bitPattern == 0x3f800000, "AnalysisResult Float rounds below midpoint exactly")
         let flags = ["isBassHeavy", "isBright", "isCompressed", "isClipping", "isDynamic", "isThin", "isMuddy"]
         for selected in flags.indices {
             for index in flags.indices { analysis[flags[index]] = index == selected }
@@ -118,11 +124,11 @@ import Combine
         let c = state.$eqProfile.sink { eqValues.append($0) }
         state.eqProfile.bands[0].gain = 3
         check(eqValues.count == 2 && eqValues.last!.bands[0].gain == 3, "Combine nested EQ mutation")
-        let playback = PlaybackBarView(frame: .zero)
+        let playback = makePlaybackBarView(frame: .zero)
         check(action(playback, "⤮") && state.shuffle, "AppKit shuffle target action")
         check(action(playback, "↻") && state.repeatMode, "AppKit repeat target action")
         check(action(playback, "EQ") && !state.showEQ, "AppKit EQ visibility target action")
-        let eqPanel = EQPanelView(frame: .zero)
+        let eqPanel = makeEQPanelView(frame: .zero)
         check(action(eqPanel, "AUTO") && state.eqBypassed, "AppKit retained EQ wrapper action")
         check(action(eqPanel, "RST") && state.eqProfile.isFlat, "AppKit EQ reset action")
         withExtendedLifetime([a,b,c]) {}
@@ -216,6 +222,34 @@ import Combine
         check(scanned.count == 2 && scanned.allSatisfy({abs($0.duration-1) < 0.0001}), "Scanner duration metadata")
         check(Set(scanned.map(\.id)).count == 2, "Scanner content identities")
         check(await FolderScanner.scan(folders: [scratch.appendingPathComponent("missing").path]).isEmpty, "Missing folder scan")
+
+        // Path-based scanner storage must preserve URL spelling, canonical identity,
+        // natural ordering, and metadata selection after sharing async continuations.
+        let pathScan = scratch.appendingPathComponent("scanner-paths")
+        try FileManager.default.createDirectory(at: pathScan, withIntermediateDirectories: true)
+        for name in ["Song 10 #%.WAV", "Song 2 #%.WAV"] {
+            try FileManager.default.copyItem(at: silence, to: pathScan.appendingPathComponent(name))
+        }
+        let aliasScan = scratch.appendingPathComponent("scanner-alias")
+        try FileManager.default.createSymbolicLink(at: aliasScan, withDestinationURL: pathScan)
+        let pathTracks = await FolderScanner.scan(folders: [aliasScan.path, pathScan.path])
+        check(pathTracks.map { URL(fileURLWithPath: $0.path).lastPathComponent } == ["Song 2 #%.WAV", "Song 10 #%.WAV"], "Scanner canonical paths preserve spelling and natural sorting")
+        check(pathTracks.count == 2 && pathTracks.allSatisfy { $0.path.hasPrefix(pathScan.path + "/") }, "Scanner symlink roots deduplicate canonical identity")
+
+        let metadataScan = scratch.appendingPathComponent("scanner-metadata")
+        try FileManager.default.createDirectory(at: metadataScan, withIntermediateDirectories: true)
+        let taggedURL = metadataScan.appendingPathComponent("tagged.m4a")
+        let export = AVAssetExportSession(asset: AVAsset(url: silence), presetName: AVAssetExportPresetAppleM4A)!
+        export.outputURL = taggedURL; export.outputFileType = .m4a
+        export.metadata = [(AVMetadataKey.commonKeyTitle, "Title α"), (.commonKeyArtist, "Artist β"), (.commonKeyAlbumName, "Album γ"), (.commonKeyDescription, "Ignore me")].map { key, value in
+            let item = AVMutableMetadataItem()
+            item.keySpace = .common; item.key = key as NSString; item.value = value as NSString
+            return item
+        }
+        await export.export()
+        check(export.status == .completed, "Scanner metadata fixture exports")
+        let tagged = await FolderScanner.scan(folders: [metadataScan.path])
+        check(tagged.count == 1 && tagged[0].title == "Title α" && tagged[0].artist == "Artist β" && tagged[0].album == "Album γ", "Scanner reads title artist album and ignores unrelated tags")
 
         // Baseline mode excludes known defects and potentially crashing invalid-resolution calls.
         if ProcessInfo.processInfo.environment["ULTRALIGHT_GATE_BASELINE"] != "1" {

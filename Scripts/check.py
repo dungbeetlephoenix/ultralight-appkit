@@ -18,6 +18,7 @@ def main():
         ('continuity', ['Tests/playback/continuity.py', str(ROOT), '--', *FLAGS]),
         ('state', ['Tests/state/run.py', str(ROOT), '--', *FLAGS]),
         ('binding', ['Tests/binding/run.py', str(ROOT), '--', *FLAGS]),
+        ('drop', ['Tests/drop/run.py', str(ROOT), '--', *FLAGS]),
         ('allocation', ['Tests/allocation/run.py', str(ROOT)]),
     ]
     statuses = {}

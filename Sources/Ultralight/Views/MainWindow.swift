@@ -2,12 +2,12 @@ import AppKit
 import Combine
 
 final class MainWindow: NSWindow {
-    let headerView = HeaderView()
+    let headerView = makeHeaderView()
     let trackListView = TrackListView()
-    let eqPanelView = EQPanelView()
-    let playbackBar = PlaybackBarView()
+    let eqPanelView = makeEQPanelView()
+    let playbackBar = makePlaybackBarView()
 
-    private var cancellables = Set<AnyCancellable>()
+    private var cancellables = [AnyCancellable]()
 
     init() {
         super.init(
@@ -39,40 +39,33 @@ final class MainWindow: NSWindow {
         let container = NSView()
         container.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(container)
-        NSLayoutConstraint.activate([
-            uiConstraint(container, .top, content, .top, .equal, 0),
-            uiConstraint(container, .leading, content, .leading, .equal, 0),
-            uiConstraint(container, .trailing, content, .trailing, .equal, 0),
-            uiConstraint(container, .bottom, content, .bottom, .equal, 0),
-        ])
+        uiFill(container, in: content)
 
         uiInstall(container, [headerView, trackListView, eqPanelView, playbackBar] as [NSView])
 
-        NSLayoutConstraint.activate([
-            // Header at top
-            uiConstraint(headerView, .top, container, .top, .equal, 0),
-            uiConstraint(headerView, .leading, container, .leading, .equal, 0),
-            uiConstraint(headerView, .trailing, container, .trailing, .equal, 0),
-            uiConstraint(headerView, .height, nil, .notAnAttribute, .equal, 50),
+        // Header at top
+        uiAlign(headerView, .top, to: container)
+        uiAlign(headerView, .leading, to: container)
+        uiAlign(headerView, .trailing, to: container)
+        uiDimension(headerView, .height, 50)
 
-            // Playback bar at bottom
-            uiConstraint(playbackBar, .bottom, container, .bottom, .equal, 0),
-            uiConstraint(playbackBar, .leading, container, .leading, .equal, 0),
-            uiConstraint(playbackBar, .trailing, container, .trailing, .equal, 0),
-            uiConstraint(playbackBar, .height, nil, .notAnAttribute, .equal, 96),
+        // Playback bar at bottom
+        uiAlign(playbackBar, .bottom, to: container)
+        uiAlign(playbackBar, .leading, to: container)
+        uiAlign(playbackBar, .trailing, to: container)
+        uiDimension(playbackBar, .height, 96)
 
-            // EQ panel on right
-            uiConstraint(eqPanelView, .top, headerView, .bottom, .equal, 0),
-            uiConstraint(eqPanelView, .trailing, container, .trailing, .equal, 0),
-            uiConstraint(eqPanelView, .bottom, playbackBar, .top, .equal, 0),
-            uiConstraint(eqPanelView, .width, nil, .notAnAttribute, .equal, 230),
+        // EQ panel on right
+        uiConstrain(eqPanelView, .top, headerView, .bottom, .equal, 0)
+        uiAlign(eqPanelView, .trailing, to: container)
+        uiConstrain(eqPanelView, .bottom, playbackBar, .top, .equal, 0)
+        uiDimension(eqPanelView, .width, 230)
 
-            // Track list fills remaining space
-            uiConstraint(trackListView, .top, headerView, .bottom, .equal, 0),
-            uiConstraint(trackListView, .leading, container, .leading, .equal, 0),
-            uiConstraint(trackListView, .trailing, eqPanelView, .leading, .equal, 0),
-            uiConstraint(trackListView, .bottom, playbackBar, .top, .equal, 0),
-        ])
+        // Track list fills remaining space
+        uiConstrain(trackListView, .top, headerView, .bottom, .equal, 0)
+        uiAlign(trackListView, .leading, to: container)
+        uiConstrain(trackListView, .trailing, eqPanelView, .leading, .equal, 0)
+        uiConstrain(trackListView, .bottom, playbackBar, .top, .equal, 0)
     }
 
     private func setupDragDrop() {
@@ -121,17 +114,13 @@ final class DropView: NSView {
     override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation { .copy }
 
     override func performDragOperation(_ sender: any NSDraggingInfo) -> Bool {
-        guard let items = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [
-            .urlReadingFileURLsOnly: true
-        ]) as? [URL] else { return false }
+        guard let items = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: nil) as? [URL] else { return false }
 
-        let paths = items.compactMap { url -> String? in
+        for url in items {
+            guard url.isFileURL else { continue }
             var isDir: ObjCBool = false
             FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
-            return isDir.boolValue ? url.path : url.deletingLastPathComponent().path
-        }
-
-        for path in Set(paths) {
+            let path = isDir.boolValue ? url.path : url.deletingLastPathComponent().path
             AppState.shared.addFolder(path)
         }
         return true

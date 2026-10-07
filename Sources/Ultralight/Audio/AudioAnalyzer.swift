@@ -44,9 +44,14 @@ enum AudioAnalyzer {
         let binHz = Float(sampleRate) / Float(fftSize)
         let bassEnd = min(Int(250 / binHz), energies.count)
         let midEnd = min(Int(4000 / binHz), energies.count)
-        let bassEnergy = energies[..<bassEnd].reduce(0, +)
-        let midEnergy = energies[bassEnd..<midEnd].reduce(0, +)
-        let trebleEnergy = energies[midEnd...].reduce(0, +)
+        var bassEnergy: Float = 0
+        var midEnergy: Float = 0
+        var trebleEnergy: Float = 0
+        for (index, energy) in energies.enumerated() {
+            if index < bassEnd { bassEnergy += energy }
+            else if index < midEnd { midEnergy += energy }
+            else { trebleEnergy += energy }
+        }
         let totalEnergy = bassEnergy + midEnergy + trebleEnergy
         guard totalEnergy > 0, totalEnergy.isFinite else { return nil }
 
@@ -122,7 +127,9 @@ enum AudioAnalyzer {
         var maxPeak: Float = 0
         vDSP_maxv(peaks, 1, &maxPeak, vDSP_Length(binCount))
         if maxPeak > 0 {
-            vDSP_vsdiv(peaks, 1, &maxPeak, &peaks, 1, vDSP_Length(binCount))
+            peaks.withUnsafeMutableBufferPointer {
+                vDSP_vsdiv($0.baseAddress!, 1, &maxPeak, $0.baseAddress!, 1, vDSP_Length(binCount))
+            }
         }
         return peaks
     }

@@ -20,6 +20,23 @@ def require(condition, message):
         raise SystemExit(message)
 
 
+def immutable_method_lists(data, offset, length):
+    end = offset + length
+    lists = 0
+    while offset < end:
+        require(offset + 8 <= end, 'Truncated Objective-C method list.')
+        flags, count = struct.unpack_from('<II', data, offset)
+        require(flags == 0x8000000c, 'Packed method lists must use immutable relative entries.')
+        offset += 8 + count * 12
+        require(offset <= end, 'Objective-C method list exceeds its section.')
+        lists += 1
+        aligned = min(end, (offset + 7) & ~7)
+        require(not any(data[offset:aligned]), 'Unexpected method-list alignment padding.')
+        offset = aligned
+    require(lists > 0, 'Missing Objective-C method lists.')
+    return lists
+
+
 def verify(app):
     app = pathlib.Path(app).resolve()
     require(valid(app), 'Release signature is invalid.')
@@ -29,6 +46,11 @@ def verify(app):
     cursor = 32
     text_offset = None
     signature = None
+    segments = {}
+    sections = {}
+    uuid = False
+    function_starts = False
+    method_lists = 0
     for _ in range(struct.unpack_from('<I', data, 16)[0]):
         command, size = struct.unpack_from('<II', data, cursor)
         if command == 0x1d:  # LC_CODE_SIGNATURE
@@ -38,12 +60,39 @@ def verify(app):
             require(reserved - used < 16, 'Ad-hoc signature has unused certificate reservation.')
             signature = {'used_bytes': used, 'reserved_bytes': reserved}
         elif command == 0x19:  # LC_SEGMENT_64
-            for index in range(struct.unpack_from('<I', data, cursor + 64)[0]):
+            segment = data[cursor + 8:cursor + 24].split(b'\0')[0].decode()
+            maximum, initial, count, flags = struct.unpack_from('<IIII', data, cursor + 56)
+            require(not (maximum & 2 and maximum & 4), 'Segment permits writable executable memory.')
+            segments[segment] = {'maximum': maximum, 'initial': initial, 'flags': flags}
+            for index in range(count):
                 section = cursor + 72 + index * 80
-                if data[section:section + 16].split(b'\0')[0] == b'__text':
+                name = data[section:section + 16].split(b'\0')[0].decode()
+                sections[(segment, name)] = struct.unpack_from('<Q', data, section + 40)[0]
+                if name == '__objc_methlist':
+                    require(segment == '__DATA_CONST', 'Method lists must remain in protected constant data.')
+                    method_lists = immutable_method_lists(data,
+                        struct.unpack_from('<I', data, section + 48)[0], sections[(segment, name)])
+                if name.startswith('__swift') or name == '__constg_swiftt':
+                    require(segment == '__TEXT', 'Runtime-discovered Swift metadata moved out of TEXT.')
+                if name == '__text':
+                    require(segment == '__TEXT', 'Executable code moved out of TEXT.')
                     text_offset = struct.unpack_from('<I', data, section + 48)[0]
+        elif command == 0x1b:  # LC_UUID
+            uuid = any(data[cursor + 8:cursor + 24])
+        elif command == 0x26:  # LC_FUNCTION_STARTS
+            function_starts = struct.unpack_from('<I', data, cursor + 12)[0] > 0
         cursor += size
     require(text_offset is not None and signature is not None, 'Missing code or signature.')
+    require(segments.get('__TEXT', {}).get('initial') == 5, 'TEXT must remain read/execute.')
+    constant = segments.get('__DATA_CONST', {})
+    require(constant.get('initial') == 3 and constant.get('flags', 0) & 0x10,
+            'Constant data must retain dyld read-only-after-fixup protection.')
+    for name in ('__text_const', '__cstring', '__objc_classname', '__objc_selrefs'):
+        require(sections.get(('__DATA_CONST', name), 0) > 0, 'Missing protected literals: ' + name)
+    require(method_lists > 0, 'Missing immutable method lists.')
+    require(uuid and function_starts, 'UUID and function starts are required for diagnostics.')
+    for name in ('__unwind_info', '__eh_frame'):
+        require(sections.get(('__TEXT', name), 0) > 0, 'Missing unwind information: ' + name)
     rejected = {}
     with tempfile.TemporaryDirectory(prefix='ultralight-signature-gate-') as directory:
         for kind in ('code', 'plist'):
@@ -61,7 +110,10 @@ def verify(app):
             rejected[kind] = not valid(copied)
     require(all(rejected.values()), 'Signature accepted modified content.')
     return {'passed': True, 'clean_verified': True, 'tampered_rejected': rejected,
-            'signature': signature}
+            'signature': signature,
+            'layout': {'segments': segments, 'swift_metadata_in_text': True,
+                       'immutable_method_lists': method_lists,
+                       'protected_literals': True, 'unwind_and_diagnostics_retained': True}}
 
 
 if __name__ == '__main__':

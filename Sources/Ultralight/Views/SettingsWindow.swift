@@ -1,6 +1,6 @@
 import AppKit
 
-final class SettingsWindow: NSWindow {
+final class SettingsWindow: NSWindow, NSTableViewDataSource, NSTableViewDelegate {
     private static var instance: SettingsWindow?
 
     static func show() {
@@ -45,10 +45,8 @@ final class SettingsWindow: NSWindow {
         col.resizingMask = .autoresizingMask
         tableView.addTableColumn(col)
 
-        let delegate = FolderTableDelegate()
-        tableView.dataSource = delegate
-        tableView.delegate = delegate
-        objc_setAssociatedObject(self, "delegate", delegate, .OBJC_ASSOCIATION_RETAIN)
+        tableView.dataSource = self
+        tableView.delegate = self
 
         scrollView.documentView = tableView
         scrollView.hasVerticalScroller = true
@@ -59,30 +57,32 @@ final class SettingsWindow: NSWindow {
         uiStyleButton(addBtn, 8, .medium, true, 0x4a9eff)
         uiBorder(addBtn, 0x2a2a2a)
 
-        let wrapper = AddFolderAction(tableView: tableView)
-        objc_setAssociatedObject(self, "addAction", wrapper, .OBJC_ASSOCIATION_RETAIN)
-        addBtn.target = wrapper
-        addBtn.action = #selector(AddFolderAction.invoke)
+        uiAction(addBtn) { [weak tableView] in
+            let panel = NSOpenPanel()
+            panel.canChooseDirectories = true
+            panel.canChooseFiles = false
+            panel.allowsMultipleSelection = true
+            if panel.runModal() == .OK {
+                for url in panel.urls { AppState.shared.addFolder(url.path) }
+                tableView?.reloadData()
+            }
+        }
 
         // Layout
         uiInstall(content, [header, scrollView, addBtn] as [NSView])
 
-        NSLayoutConstraint.activate([
-            uiConstraint(header, .top, content, .top, .equal, 16),
-            uiConstraint(header, .leading, content, .leading, .equal, 16),
+        uiAlign(header, .top, to: content, offset: 16)
+        uiAlign(header, .leading, to: content, offset: 16)
 
-            uiConstraint(scrollView, .top, header, .bottom, .equal, 8),
-            uiConstraint(scrollView, .leading, content, .leading, .equal, 16),
-            uiConstraint(scrollView, .trailing, content, .trailing, .equal, -16),
-            uiConstraint(scrollView, .bottom, addBtn, .top, .equal, -12),
+        uiConstrain(scrollView, .top, header, .bottom, .equal, 8)
+        uiAlign(scrollView, .leading, to: content, offset: 16)
+        uiAlign(scrollView, .trailing, to: content, offset: -16)
+        uiConstrain(scrollView, .bottom, addBtn, .top, .equal, -12)
 
-            uiConstraint(addBtn, .bottom, content, .bottom, .equal, -16),
-            uiConstraint(addBtn, .centerX, content, .centerX, .equal, 0),
-        ])
+        uiAlign(addBtn, .bottom, to: content, offset: -16)
+        uiAlign(addBtn, .centerX, to: content)
     }
-}
 
-private final class FolderTableDelegate: NSObject, NSTableViewDataSource, NSTableViewDelegate {
     func numberOfRows(in tableView: NSTableView) -> Int {
         AppState.shared.folders.count
     }
@@ -99,51 +99,19 @@ private final class FolderTableDelegate: NSObject, NSTableViewDataSource, NSTabl
         let removeBtn = uiButton("✕")
         uiStyleButton(removeBtn, 9, .regular, false, 0x555555)
 
-        let action = RemoveFolderAction(path: folder, tableView: tableView)
-        objc_setAssociatedObject(removeBtn, "action", action, .OBJC_ASSOCIATION_RETAIN)
-        removeBtn.target = action
-        removeBtn.action = #selector(RemoveFolderAction.invoke)
+        uiAction(removeBtn) { [weak tableView] in
+            AppState.shared.removeFolder(folder)
+            tableView?.reloadData()
+        }
 
         uiInstall(cell, [label, removeBtn])
 
-        NSLayoutConstraint.activate([
-            uiConstraint(label, .leading, cell, .leading, .equal, 8),
-            uiConstraint(label, .centerY, cell, .centerY, .equal, 0),
-            uiConstraint(label, .trailing, removeBtn, .leading, .equal, -4),
-            uiConstraint(removeBtn, .trailing, cell, .trailing, .equal, -8),
-            uiConstraint(removeBtn, .centerY, cell, .centerY, .equal, 0),
-        ])
+        uiAlign(label, .leading, to: cell, offset: 8)
+        uiAlign(label, .centerY, to: cell)
+        uiConstrain(label, .trailing, removeBtn, .leading, .equal, -4)
+        uiAlign(removeBtn, .trailing, to: cell, offset: -8)
+        uiAlign(removeBtn, .centerY, to: cell)
 
         return cell
-    }
-}
-
-private final class RemoveFolderAction: NSObject {
-    let path: String
-    weak var tableView: NSTableView?
-    init(path: String, tableView: NSTableView) {
-        self.path = path
-        self.tableView = tableView
-    }
-    @objc func invoke() {
-        AppState.shared.removeFolder(path)
-        tableView?.reloadData()
-    }
-}
-
-private final class AddFolderAction: NSObject {
-    weak var tableView: NSTableView?
-    init(tableView: NSTableView) { self.tableView = tableView }
-    @objc func invoke() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.allowsMultipleSelection = true
-        if panel.runModal() == .OK {
-            for url in panel.urls {
-                AppState.shared.addFolder(url.path)
-            }
-            tableView?.reloadData()
-        }
     }
 }

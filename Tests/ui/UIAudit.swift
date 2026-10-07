@@ -6,6 +6,7 @@ import Foundation
 struct UIAudit {
     static var checks: [[String: Any]] = []
     static var geometryChecks: [[String: Any]] = []
+    static var lifecycleChecks: [[String: Any]] = []
     static var observations: [[String: Any]] = []
     static var layouts: [[String: Any]] = []
     static let output = URL(fileURLWithPath: ProcessInfo.processInfo.environment["ULTRALIGHT_UI_AUDIT_OUTPUT"]!)
@@ -109,6 +110,38 @@ struct UIAudit {
         verify("transport groups fit both window sizes", [t, e, v].allSatisfy { $0.width > 0 && $0.height > 0 && bar.bounds.contains($0) })
     }
 
+    static func inspectSubscriptionOwnership() {
+        let factories: [(String, () -> NSView)] = [
+            ("header", { makeHeaderView() }),
+            ("playback", { makePlaybackBarView() }),
+            ("EQ", { makeEQPanelView() }),
+        ]
+        for (name, make) in factories {
+            weak var root: NSView?
+            weak var boundControl: NSView?
+            var foundControl = false
+            autoreleasepool {
+                let view = make()
+                root = view
+                if name == "header" {
+                    boundControl = labels(view).first { $0.stringValue.isEmpty }
+                } else if name == "playback" {
+                    boundControl = descendants(view).first { $0 is ProgressBarView }
+                } else {
+                    boundControl = descendants(view).first { $0 is EQSliderView }
+                }
+                foundControl = boundControl != nil
+                // Initial @Published deliveries are still queued when ownership ends.
+            }
+            pump()
+            for (detail, passed) in [("root releases with queued publications", root == nil),
+                                     ("captured controls release after cancellation", foundControl && boundControl == nil)] {
+                lifecycleChecks.append(["name": "\(name): \(detail)", "pass": passed])
+                print("\(passed ? "PASS" : "FAIL") lifecycle \(name): \(detail)")
+            }
+        }
+    }
+
     static func main() {
         let app = NSApplication.shared
         app.setActivationPolicy(.prohibited)
@@ -203,16 +236,19 @@ struct UIAudit {
         pump(window)
         check("nil track resets header", window.title == "Ultralight" && !hasLabel(window.headerView, "Fallback Name") && !hasLabel(window.headerView, " M4A "))
         check("audio silent after UI", !state.audioEngine.isPlaying)
+        inspectSubscriptionOwnership()
         finish()
     }
 
     static func finish() {
         let failed = checks.filter { ($0["pass"] as? Bool) != true }.count
         let geometryFailed = geometryChecks.filter { ($0["pass"] as? Bool) != true }.count
-        let report: [String: Any] = ["checks": checks, "geometryChecks": geometryChecks, "geometryFailed": geometryFailed, "observations": observations, "layouts": layouts, "passed": checks.count - failed, "failed": failed, "scope": "Actual AppKit views, Combine bindings, target/action wiring, filtering, layout, and hidden-window bitmap rendering. Synthetic state only; playback was never started. ConfigStore redirected to isolated temporary storage."]
+        let lifecycleFailed = lifecycleChecks.filter { ($0["pass"] as? Bool) != true }.count
+        let report: [String: Any] = ["checks": checks, "geometryChecks": geometryChecks, "geometryFailed": geometryFailed, "lifecycleChecks": lifecycleChecks, "lifecycleFailed": lifecycleFailed, "observations": observations, "layouts": layouts, "passed": checks.count - failed, "failed": failed, "scope": "Actual AppKit views, Combine bindings, target/action wiring, filtering, layout, and hidden-window bitmap rendering. Synthetic state only; playback was never started. ConfigStore redirected to isolated temporary storage."]
         if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) { try? data.write(to: output.appendingPathComponent("results.json")) }
         print("RESULT \(checks.count - failed)/\(checks.count) checks passed; \(observations.count) observations")
         print("GEOMETRY \(geometryChecks.count - geometryFailed)/\(geometryChecks.count) checks passed")
-        exit(failed == 0 && geometryFailed == 0 ? 0 : 1)
+        print("LIFECYCLE \(lifecycleChecks.count - lifecycleFailed)/\(lifecycleChecks.count) checks passed")
+        exit(failed == 0 && geometryFailed == 0 && lifecycleFailed == 0 ? 0 : 1)
     }
 }

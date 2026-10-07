@@ -37,13 +37,13 @@ enum ConfigStore {
 extension ConfigStore.Config {
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: JSONKey.self)
-        folders = try values.decode([String].self, forKey: JSONKey("folders"))
-        theme = try values.decode(String.self, forKey: JSONKey("theme"))
+        folders = try values.read([String].self, "folders")
+        theme = try values.read(String.self, "theme")
     }
 
     func encode(to encoder: Encoder) throws {
         var values = encoder.container(keyedBy: JSONKey.self)
-        try values.encode(folders, forKey: JSONKey("folders"))
-        try values.encode(theme, forKey: JSONKey("theme"))
+        try values.write(folders, "folders")
+        try values.write(theme, "theme")
     }
 }

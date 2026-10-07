@@ -68,8 +68,8 @@ def main():
                    'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in files},
         'signature': 'ad-hoc; not Developer ID signed or notarized',
     }
-    if report['binary_bytes'] > 250000 or report['app_bytes'] > 250000:
-        raise SystemExit('Release exceeds the 250,000-byte binary / app budgets.')
+    if report['binary_bytes'] > 200000 or report['app_bytes'] > 200000:
+        raise SystemExit('Release exceeds the 200,000-byte binary / app budgets.')
     if args.dmg:
         dmg = output / 'Ultralight.dmg'
         command = ['hdiutil', 'create', '-ov', '-volname', 'Ultralight', '-srcfolder',

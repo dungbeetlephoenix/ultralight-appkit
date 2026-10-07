@@ -2,82 +2,86 @@ import Foundation
 import AVFoundation
 
 enum FolderScanner {
-    private static let audioExtensions: Set<String> = [
+    private static let audioExtensions: [String] = [
         "mp3", "flac", "wav", "aac", "m4a", "ogg", "opus", "aiff", "aif", "wma", "alac", "wv"
     ]
 
     static func scan(folders: [String]) async -> [Track] {
         var tracks: [Track] = []
-        for url in audioFiles(in: folders) {
+        for path in audioFiles(in: folders) {
             guard !Task.isCancelled else { return [] }
-            let path = url.path
             guard let hash = FileHasher.hash(path: path) else { continue }
-            let metadata = await extractMetadata(url: url)
-            guard metadata.duration.isFinite, metadata.duration > 0 else { continue }
-            tracks.append(Track(id: hash, path: path, title: metadata.title,
-                artist: metadata.artist, album: metadata.album, duration: metadata.duration))
+            let track = await extractMetadata(path: path, hash: hash)
+            guard !Task.isCancelled else { return [] }
+            guard track.duration.isFinite, track.duration > 0 else { continue }
+            tracks.append(track)
         }
         return tracks
     }
 
-    private static func audioFiles(in folders: [String]) -> [URL] {
+    private static func audioFiles(in folders: [String]) -> [String] {
         let fm = FileManager.default
-        var paths = Set<URL>()
+        let paths = NSMutableSet()
 
         for folder in folders {
             guard let enumerator = fm.enumerator(
                 at: URL(fileURLWithPath: folder),
-                includingPropertiesForKeys: [.isRegularFileKey],
+                includingPropertiesForKeys: nil,
                 options: [.skipsHiddenFiles, .skipsPackageDescendants]
             ) else { continue }
 
-            for case let url as URL in enumerator {
+            while let value = enumerator.nextObject() {
+                guard let url = value as? URL else { continue }
                 guard !Task.isCancelled else { return [] }
                 let ext = url.pathExtension.lowercased()
                 guard audioExtensions.contains(ext) else { continue }
-                guard (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true else { continue }
-                paths.insert(url.resolvingSymlinksInPath().standardizedFileURL)
+                var regular: AnyObject?
+                do { try (url as NSURL).getResourceValue(&regular, forKey: .isRegularFileKey) }
+                catch { continue }
+                guard (regular as? NSNumber)?.boolValue == true else { continue }
+                paths.add(url.resolvingSymlinksInPath().standardizedFileURL.path)
             }
         }
 
-        return paths.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
+        return (paths.allObjects as NSArray).sortedArray(using: #selector(NSString.localizedStandardCompare(_:))) as! [String]
     }
 
-    private struct Metadata {
-        var title: String = ""
-        var artist: String = ""
-        var album: String = ""
-        var duration: Double = 0
-    }
-
-    private static func extractMetadata(url: URL) async -> Metadata {
-        var meta = Metadata()
+    private static func extractMetadata(path: String, hash: String) async -> Track {
+        var meta = Track(id: hash, path: path, title: "", artist: "", album: "", duration: 0)
+        let url = URL(fileURLWithPath: path)
         let asset = AVAsset(url: url)
 
-        // Duration
-        do {
-            let duration = try await asset.load(.duration)
-            meta.duration = CMTimeGetSeconds(duration)
-        } catch {}
-
-        // Common metadata (title, artist, album)
-        do {
-            let items = try await asset.load(.commonMetadata)
-            for item in items {
+        await load(asset, keys: ["duration", "commonMetadata"])
+        if asset.statusOfValue(forKey: "duration", error: nil) == .loaded {
+            meta.duration = CMTimeGetSeconds(asset.duration)
+        }
+        if asset.statusOfValue(forKey: "commonMetadata", error: nil) == .loaded {
+            for item in asset.commonMetadata {
+                guard !Task.isCancelled else { break }
                 guard let key = item.commonKey else { continue }
                 switch key {
-                case .commonKeyTitle:
-                    meta.title = try await item.load(.stringValue) ?? ""
-                case .commonKeyArtist:
-                    meta.artist = try await item.load(.stringValue) ?? ""
-                case .commonKeyAlbumName:
-                    meta.album = try await item.load(.stringValue) ?? ""
-                default:
-                    break
+                case .commonKeyTitle, .commonKeyArtist, .commonKeyAlbumName: break
+                default: continue
+                }
+                await load(item, keys: ["stringValue"])
+                guard item.statusOfValue(forKey: "stringValue", error: nil) == .loaded else { break }
+                let value = item.stringValue ?? ""
+                switch key {
+                case .commonKeyTitle: meta.title = value
+                case .commonKeyArtist: meta.artist = value
+                default: meta.album = value
                 }
             }
-        } catch {}
+        }
 
         return meta
     }
+    // Read cached values only after AVFoundation reports asynchronous loading done.
+    private static func load(_ object: AVAsynchronousKeyValueLoading, keys: [String]) async {
+        guard !Task.isCancelled else { return }
+        await withCheckedContinuation { continuation in
+            object.loadValuesAsynchronously(forKeys: keys) { continuation.resume() }
+        }
+    }
+
 }

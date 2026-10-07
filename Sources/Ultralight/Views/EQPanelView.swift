@@ -1,204 +1,176 @@
 import AppKit
 import Combine
 
-final class EQPanelView: NSView {
-    private let labels = ["60", "170", "310", "600", "1K", "3K", "6K", "12K"]
-    private var sliders: [EQSliderView] = []
-    private let preampBar = ProgressBarView()
-    private let preampLabel = uiLabel("+0")
-    private let reasonLabel = uiLabel("")
-    private let badgeContainer = NSStackView()
-    private let statsLabel = uiLabel("")
-    private var cancellables = Set<AnyCancellable>()
+func makeEQPanelView(frame: NSRect = .zero) -> NSView {
+    let labels = ["60", "170", "310", "600", "1K", "3K", "6K", "12K"]
+    let preampBar = ProgressBarView()
+    let preampLabel = uiLabel("+0")
+    let reasonLabel = uiLabel("")
+    let badgeContainer = NSStackView()
+    let statsLabel = uiLabel("")
+    var cancellables = [AnyCancellable]()
+    let panel = uiContainer(border: .minX, frame: frame)
+    uiBackground(panel, 0x0e0e0e)
 
-    override init(frame: NSRect) {
-        super.init(frame: frame)
-        uiBackground(self, 0x0e0e0e)
-        setup()
-        bind()
+    // Header
+    let headerBg = NSView()
+    uiBackground(headerBg, 0x111111)
+
+    let eqLabel = uiLabel("EQ")
+    uiStyleLabel(eqLabel, 10, .bold, 0xcccccc)
+
+    let autoBtn = makeEQButton("AUTO") { AppState.shared.eqBypassed.toggle() }
+    autoBtn.contentTintColor = NSColor(hex: 0x4a9eff)
+    autoBtn.layer?.borderColor = NSColor(hex: 0x4a9eff).cgColor
+    let rstBtn = makeEQButton("RST") { AppState.shared.eqProfile = .flat }
+    let saveBtn = makeEQButton("SAVE") { AppState.shared.saveEQForCurrentTrack() }
+    let btnStack = uiStack([autoBtn, rstBtn, saveBtn], .horizontal, 4)
+
+    let spacer = NSView(); spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+    let headerStack = NSStackView(views: [eqLabel, spacer, btnStack])
+    headerStack.edgeInsets = NSEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
+
+    // Sliders
+    let sliderStack = NSStackView()
+    sliderStack.orientation = .horizontal
+    sliderStack.distribution = .fillEqually
+    sliderStack.spacing = 1
+
+    let sliders = labels.enumerated().map { EQSliderView(label: $0.element, index: $0.offset) }
+    for slider in sliders { sliderStack.addArrangedSubview(slider) }
+
+    // Preamp
+    preampBar.color = NSColor(hex: 0x4a9eff)
+    preampBar.onClick = { pct in
+        AppState.shared.eqProfile.preamp = Float(pct) * 24 - 12
     }
 
-    required init?(coder: NSCoder) { fatalError() }
+    let preLabel = uiLabel("PRE")
+    uiStyleLabel(preLabel, 7, .regular, 0x333333)
 
-    private func setup() {
-        // Header
-        let headerBg = NSView()
-        uiBackground(headerBg, 0x111111)
+    uiStyleLabel(preampLabel, 7, .regular, 0x333333)
 
-        let eqLabel = uiLabel("EQ")
-        uiStyleLabel(eqLabel, 10, .bold, 0xcccccc)
+    let preStack = uiStack([preLabel, preampBar, preampLabel], .horizontal, 4)
+    preStack.edgeInsets = NSEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
+    uiConstrain(preampBar, .width, nil, .notAnAttribute, .greaterThanOrEqual, 50)
+    uiDimension(preampBar, .height, 4)
 
-        let autoBtn = makeButton("AUTO") { AppState.shared.eqBypassed.toggle() }
-        autoBtn.contentTintColor = NSColor(hex: 0x4a9eff)
-        autoBtn.layer?.borderColor = NSColor(hex: 0x4a9eff).cgColor
-        let rstBtn = makeButton("RST") { AppState.shared.eqProfile = .flat }
-        let saveBtn = makeButton("SAVE") { AppState.shared.saveEQForCurrentTrack() }
-        let btnStack = uiStack([autoBtn, rstBtn, saveBtn], .horizontal, 4)
+    // Analysis
+    uiStyleLabel(reasonLabel, 9, .medium, 0xcccccc)
+    reasonLabel.lineBreakMode = .byWordWrapping
+    reasonLabel.maximumNumberOfLines = 2
 
-        let spacer = NSView(); spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let headerStack = NSStackView(views: [eqLabel, spacer, btnStack])
-        headerStack.edgeInsets = NSEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
+    badgeContainer.orientation = .horizontal
+    badgeContainer.spacing = 3
+    badgeContainer.alignment = .centerY
 
-        // Sliders
-        let sliderStack = NSStackView()
-        sliderStack.orientation = .horizontal
-        sliderStack.distribution = .fillEqually
-        sliderStack.spacing = 1
+    uiStyleLabel(statsLabel, 7, .regular, 0x333333)
 
-        for i in 0..<8 {
-            let sv = EQSliderView(label: labels[i], index: i)
-            sliders.append(sv)
-            sliderStack.addArrangedSubview(sv)
+    let analysisStack = NSStackView(views: [reasonLabel, badgeContainer, statsLabel])
+    analysisStack.orientation = .vertical
+    analysisStack.alignment = .leading
+    analysisStack.spacing = 2
+    analysisStack.edgeInsets = NSEdgeInsets(top: 4, left: 8, bottom: 4, right: 8)
+
+    // Main layout
+    let mainStack = uiStack([headerBg, sliderStack, preStack, analysisStack], .vertical, 0)
+    mainStack.translatesAutoresizingMaskIntoConstraints = false
+    panel.addSubview(mainStack)
+
+    headerBg.translatesAutoresizingMaskIntoConstraints = false
+    headerStack.translatesAutoresizingMaskIntoConstraints = false
+    headerBg.addSubview(headerStack)
+
+    uiAlign(mainStack, .top, to: panel)
+    uiAlign(mainStack, .leading, to: panel)
+    uiAlign(mainStack, .trailing, to: panel)
+    uiDimension(headerBg, .height, 28)
+    uiFill(headerStack, in: headerBg)
+    uiDimension(sliderStack, .height, 110)
+
+    let state = AppState.shared
+
+    state.$eqProfile.sinkOnMain { [weak panel] profile in
+        guard panel != nil else { return }
+        for (i, slider) in sliders.enumerated() where i < profile.bands.count {
+            slider.value = profile.bands[i].gain
         }
+        preampBar.progress = Double((profile.preamp + 12) / 24)
+        preampLabel.stringValue = String(format: "%+.0f", profile.preamp)
+    }.store(in: &cancellables)
 
-        // Preamp
-        preampBar.color = NSColor(hex: 0x4a9eff)
-        preampBar.onClick = { pct in
-            AppState.shared.eqProfile.preamp = Float(pct) * 24 - 12
-        }
+    Publishers.CombineLatest(state.$currentTrack, state.$eqProfile)
+        .sinkOnMain { [weak panel] track, _ in guard panel != nil else { return }; updateAnalysis(track: track, reasonLabel: reasonLabel, badgeContainer: badgeContainer, statsLabel: statsLabel) }
+        .store(in: &cancellables)
 
-        let preLabel = uiLabel("PRE")
-        uiStyleLabel(preLabel, 7, .regular, 0x333333)
-
-        uiStyleLabel(preampLabel, 7, .regular, 0x333333)
-
-        let preStack = uiStack([preLabel, preampBar, preampLabel], .horizontal, 4)
-        preStack.edgeInsets = NSEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
-        uiConstraint(preampBar, .width, nil, .notAnAttribute, .greaterThanOrEqual, 50).isActive = true
-        uiConstraint(preampBar, .height, nil, .notAnAttribute, .equal, 4).isActive = true
-
-        // Analysis
-        uiStyleLabel(reasonLabel, 9, .medium, 0xcccccc)
-        reasonLabel.lineBreakMode = .byWordWrapping
-        reasonLabel.maximumNumberOfLines = 2
-
-        badgeContainer.orientation = .horizontal
-        badgeContainer.spacing = 3
-        badgeContainer.alignment = .centerY
-
-        uiStyleLabel(statsLabel, 7, .regular, 0x333333)
-
-        let analysisStack = NSStackView(views: [reasonLabel, badgeContainer, statsLabel])
-        analysisStack.orientation = .vertical
-        analysisStack.alignment = .leading
-        analysisStack.spacing = 2
-        analysisStack.edgeInsets = NSEdgeInsets(top: 4, left: 8, bottom: 4, right: 8)
-
-        // Main layout
-        let mainStack = uiStack([headerBg, sliderStack, preStack, analysisStack], .vertical, 0)
-        mainStack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(mainStack)
-
-        headerBg.translatesAutoresizingMaskIntoConstraints = false
-        headerStack.translatesAutoresizingMaskIntoConstraints = false
-        headerBg.addSubview(headerStack)
-
-        NSLayoutConstraint.activate([
-            uiConstraint(mainStack, .top, self, .top, .equal, 0),
-            uiConstraint(mainStack, .leading, self, .leading, .equal, 0),
-            uiConstraint(mainStack, .trailing, self, .trailing, .equal, 0),
-            uiConstraint(headerBg, .height, nil, .notAnAttribute, .equal, 28),
-            uiConstraint(headerStack, .top, headerBg, .top, .equal, 0),
-            uiConstraint(headerStack, .bottom, headerBg, .bottom, .equal, 0),
-            uiConstraint(headerStack, .leading, headerBg, .leading, .equal, 0),
-            uiConstraint(headerStack, .trailing, headerBg, .trailing, .equal, 0),
-            uiConstraint(sliderStack, .height, nil, .notAnAttribute, .equal, 110),
-        ])
-    }
-
-    private func bind() {
-        let state = AppState.shared
-
-        state.$eqProfile.sinkOnMain { [weak self] profile in
-            guard let self else { return }
-            for (i, slider) in sliders.enumerated() where i < profile.bands.count {
-                slider.value = profile.bands[i].gain
-            }
-            preampBar.progress = Double((profile.preamp + 12) / 24)
-            preampLabel.stringValue = String(format: "%+.0f", profile.preamp)
-        }.store(in: &cancellables)
-
-        Publishers.CombineLatest(state.$currentTrack, state.$eqProfile)
-            .sinkOnMain { [weak self] track, _ in self?.updateAnalysis(track: track) }
-            .store(in: &cancellables)
-    }
-
-    private func updateAnalysis(track: Track?) {
-        guard let track, let a = AnalysisStore.result(for: track.id) else {
-            reasonLabel.stringValue = ""
-            badgeContainer.arrangedSubviews.forEach { $0.removeFromSuperview() }
-            statsLabel.stringValue = ""
-            return
-        }
-
-        reasonLabel.stringValue = a.reason
-
-        badgeContainer.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        let flags: [(Bool, String, UInt)] = [
-            (a.isBassHeavy, "BASS-HEAVY", 0xf59e0b),
-            (a.isThin, "THIN", 0x8b5cf6),
-            (a.isMuddy, "MUDDY", 0xef4444),
-            (a.isBright, "BRIGHT", 0x06b6d4),
-            (a.isCompressed, "COMPRESSED", 0xf97316),
-            (a.isDynamic, "DYNAMIC", 0x4ade80),
-            (a.isClipping, "CLIPPING", 0xef4444),
-        ]
-        var any = false
-        for (flag, label, color) in flags where flag {
-            badgeContainer.addArrangedSubview(makeBadge(label, color: color))
-            any = true
-        }
-        if !any {
-            badgeContainer.addArrangedSubview(makeBadge("BALANCED", color: 0x4ade80))
-        }
-
-        statsLabel.stringValue = "bass \(Int(a.bassEnergy * 100))%  mid \(Int(a.midEnergy * 100))%  treble \(Int(a.trebleEnergy * 100))%  peak \(String(format: "%.0f", a.peakLevel))dB"
-    }
-
-    private func makeButton(_ title: String, action: @escaping () -> Void) -> NSButton {
-        let btn = uiButton(title)
-        uiStyleButton(btn, 8, .regular, true, 0x444444)
-        uiBorder(btn, 0x222222)
-        let wrapper = ActionWrapper(action: action)
-        objc_setAssociatedObject(btn, "action", wrapper, .OBJC_ASSOCIATION_RETAIN)
-        btn.action = #selector(ActionWrapper.invoke)
-        btn.target = wrapper
-        return btn
-    }
-
-    private func makeBadge(_ text: String, color: UInt) -> NSView {
-        let label = uiLabel(text)
-        uiStyleLabel(label, 7, .bold, color)
-        uiBackground(label, color, alpha: 0.12)
-        label.layer?.borderColor = NSColor(hex: color, alpha: 0.25).cgColor
-        label.layer?.borderWidth = 1
-        return label
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-        NSColor(hex: 0x1a1a1a).setFill()
-        NSRect(x: 0, y: 0, width: 1, height: bounds.height).fill()
-    }
+    uiRetain(cancellables, on: panel)
+    return panel
 }
 
-// Action wrapper for closures
-private final class ActionWrapper: NSObject {
-    let action: () -> Void
-    init(action: @escaping () -> Void) { self.action = action }
-    @objc func invoke() { action() }
+private func updateAnalysis(track: Track?, reasonLabel: NSTextField, badgeContainer: NSStackView, statsLabel: NSTextField) {
+
+    guard let track, let a = AnalysisStore.result(for: track.id) else {
+        reasonLabel.stringValue = ""
+        badgeContainer.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        statsLabel.stringValue = ""
+        return
+    }
+
+    reasonLabel.stringValue = a.reason
+
+    badgeContainer.arrangedSubviews.forEach { $0.removeFromSuperview() }
+    let flags: [(Bool, String, UInt)] = [
+        (a.isBassHeavy, "BASS-HEAVY", 0xf59e0b),
+        (a.isThin, "THIN", 0x8b5cf6),
+        (a.isMuddy, "MUDDY", 0xef4444),
+        (a.isBright, "BRIGHT", 0x06b6d4),
+        (a.isCompressed, "COMPRESSED", 0xf97316),
+        (a.isDynamic, "DYNAMIC", 0x4ade80),
+        (a.isClipping, "CLIPPING", 0xef4444),
+    ]
+    var any = false
+    for (flag, label, color) in flags where flag {
+        badgeContainer.addArrangedSubview(makeEQBadge(label, color: color))
+        any = true
+    }
+    if !any {
+        badgeContainer.addArrangedSubview(makeEQBadge("BALANCED", color: 0x4ade80))
+    }
+
+    statsLabel.stringValue = "bass \(Int(a.bassEnergy * 100))%  mid \(Int(a.midEnergy * 100))%  treble \(Int(a.trebleEnergy * 100))%  peak \(String(format: "%.0f", a.peakLevel))dB"
+
+}
+
+private func makeEQButton(_ title: String, action: @escaping () -> Void) -> NSButton {
+
+    let btn = uiButton(title)
+    uiStyleButton(btn, 8, .regular, true, 0x444444)
+    uiBorder(btn, 0x222222)
+    uiAction(btn, action)
+    return btn
+
+}
+
+private func makeEQBadge(_ text: String, color: UInt) -> NSView {
+
+    let label = uiLabel(text)
+    uiStyleLabel(label, 7, .bold, color)
+    uiBackground(label, color, alpha: 0.12)
+    label.layer?.borderColor = NSColor(hex: color, alpha: 0.25).cgColor
+    label.layer?.borderWidth = 1
+    return label
+
 }
 
 // Individual EQ band slider
 final class EQSliderView: NSView {
     var value: Float = 0 { didSet { needsDisplay = true; gainLabel.stringValue = String(format: "%+.0f", value) } }
     private let gainLabel = uiLabel("+0")
-    private let freqLabel: NSTextField
     private let index: Int
 
     init(label: String, index: Int) {
         self.index = index
-        self.freqLabel = uiLabel(label)
+        let freqLabel = uiLabel(label)
         super.init(frame: .zero)
         wantsLayer = true
 
@@ -210,12 +182,10 @@ final class EQSliderView: NSView {
 
         uiInstall(self, [gainLabel, freqLabel])
 
-        NSLayoutConstraint.activate([
-            uiConstraint(gainLabel, .top, self, .top, .equal, 1),
-            uiConstraint(gainLabel, .centerX, self, .centerX, .equal, 0),
-            uiConstraint(freqLabel, .bottom, self, .bottom, .equal, -1),
-            uiConstraint(freqLabel, .centerX, self, .centerX, .equal, 0),
-        ])
+        uiAlign(gainLabel, .top, to: self, offset: 1)
+        uiAlign(gainLabel, .centerX, to: self)
+        uiAlign(freqLabel, .bottom, to: self, offset: -1)
+        uiAlign(freqLabel, .centerX, to: self)
     }
 
     required init?(coder: NSCoder) { fatalError() }

@@ -173,6 +173,37 @@ enum FolderScanner {
         state.removeFolder("/tmp/audit/music"); pump()
         check("nested root and neighboring prefix preserved", state.tracks.map(\.path) == [nested.path, unrelatedPrefix.path])
         Deferred.resolveScan(["/tmp/audit/music/nested", "/tmp/audit/music-other"], [nested,unrelatedPrefix]); pump()
+        let policy = AppState()
+        policy.currentTrack = a
+        policy.shuffle = true
+        policy.tracks = [a, a]
+        check("shuffle excludes every duplicate current path", policy.nextTrack() == nil)
+        policy.repeatMode = true
+        check("shuffle repeats first when only current path remains", policy.nextTrack()?.path == a.path)
+        policy.tracks = [a, a, b]
+        policy.repeatMode = false
+        check("shuffle chooses only remaining distinct path", (0..<20).allSatisfy { _ in policy.nextTrack()?.path == b.path })
+        policy.tracks = [a, b, c]
+        check("shuffle choices stay inside eligible tracks", (0..<20).allSatisfy { _ in [b.path, c.path].contains(policy.nextTrack()?.path ?? "") })
+        policy.tracks = []
+        policy.repeatMode = true
+        check("shuffle empty queue remains empty", policy.nextTrack() == nil)
+        policy.tracks = [a, b]
+        policy.currentTrack = nil
+        check("shuffle without current track starts with first", policy.nextTrack()?.path == a.path)
+        policy.currentTrack = c
+        check("shuffle missing current path starts with first", policy.nextTrack()?.path == a.path)
+
+        var copiedTrack = a
+        copiedTrack.path = "/different.wav"; copiedTrack.title = "Different"
+        copiedTrack.artist = "Artist"; copiedTrack.album = "Album"
+        copiedTrack.duration = 123; copiedTrack.analyzed = false
+        check("Track copies preserve every original field", a.id == "a" && a.path == "/tmp/audit/music/a.wav" && a.title == "a" && a.artist.isEmpty && a.album.isEmpty && a.duration == 10 && a.analyzed)
+        check("Track copied fields mutate independently", copiedTrack.id == a.id && copiedTrack.path == "/different.wav" && copiedTrack.title == "Different" && copiedTrack.artist == "Artist" && copiedTrack.album == "Album" && copiedTrack.duration == 123 && !copiedTrack.analyzed)
+        var trackArray = [a]
+        let originalArray = trackArray
+        trackArray[0].title = "Array edit"
+        check("Track nested array copy preserves original", originalArray[0].title == "a" && trackArray[0].title == "Array edit")
         let failed = checks.filter { ($0["pass"] as? Bool) != true }.count
         let report: [String: Any] = ["passed": checks.count-failed, "failed": failed, "checks": checks, "scope": "Actual production AppState with deterministic fake audio, scanner, analyzer and stores. Tests task cancellation and queue decisions, not actual audio rendering."]
         if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) { try? data.write(to: URL(fileURLWithPath: CommandLine.arguments[1]).appendingPathComponent("results.json")) }

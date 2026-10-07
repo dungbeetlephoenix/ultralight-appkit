@@ -40,29 +40,40 @@ struct JSONKey: CodingKey {
 extension EQBand {
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: JSONKey.self)
-        frequency = try values.decode(Float.self, forKey: JSONKey("frequency"))
-        gain = try values.decode(Float.self, forKey: JSONKey("gain"))
-        bandwidth = try values.decode(Float.self, forKey: JSONKey("bandwidth"))
+        frequency = try values.read(Float.self, "frequency")
+        gain = try values.read(Float.self, "gain")
+        bandwidth = try values.read(Float.self, "bandwidth")
     }
 
     func encode(to encoder: Encoder) throws {
         var values = encoder.container(keyedBy: JSONKey.self)
-        try values.encode(frequency, forKey: JSONKey("frequency"))
-        try values.encode(gain, forKey: JSONKey("gain"))
-        try values.encode(bandwidth, forKey: JSONKey("bandwidth"))
+        try values.write(frequency, "frequency")
+        try values.write(gain, "gain")
+        try values.write(bandwidth, "bandwidth")
     }
 }
 
 extension EQProfile {
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: JSONKey.self)
-        bands = try values.decode([EQBand].self, forKey: JSONKey("bands"))
-        preamp = try values.decode(Float.self, forKey: JSONKey("preamp"))
+        bands = try values.read([EQBand].self, "bands")
+        preamp = try values.read(Float.self, "preamp")
     }
 
     func encode(to encoder: Encoder) throws {
         var values = encoder.container(keyedBy: JSONKey.self)
-        try values.encode(bands, forKey: JSONKey("bands"))
-        try values.encode(preamp, forKey: JSONKey("preamp"))
+        try values.write(bands, "bands")
+        try values.write(preamp, "preamp")
+    }
+}
+
+extension KeyedDecodingContainer where Key == JSONKey {
+    func read<Value: Decodable>(_ type: Value.Type, _ key: String) throws -> Value {
+        try decode(type, forKey: JSONKey(key))
+    }
+}
+extension KeyedEncodingContainer where Key == JSONKey {
+    mutating func write<Value: Encodable>(_ value: Value, _ key: String) throws {
+        try encode(value, forKey: JSONKey(key))
     }
 }

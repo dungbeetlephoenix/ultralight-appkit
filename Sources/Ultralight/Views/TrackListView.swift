@@ -2,12 +2,9 @@ import AppKit
 import Combine
 
 final class TrackListView: NSView, NSTableViewDataSource, NSTableViewDelegate {
-    private let scrollView = NSScrollView()
     private let tableView = NSTableView()
-    private let headerBar = NSView()
     private let countLabel = uiLabel("0 tracks")
-    private let eqBtn = uiButton("EQ")
-    private var cancellables = Set<AnyCancellable>()
+    private var cancellables = [AnyCancellable]()
     private var displayedTracks: [Track] = []
 
     override init(frame: NSRect) {
@@ -21,6 +18,7 @@ final class TrackListView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     required init?(coder: NSCoder) { fatalError() }
 
     private func setupHeader() {
+        let headerBar = NSView()
         uiBackground(headerBar, 0x111111)
         headerBar.translatesAutoresizingMaskIntoConstraints = false
         addSubview(headerBar)
@@ -32,19 +30,18 @@ final class TrackListView: NSView, NSTableViewDataSource, NSTableViewDelegate {
 
         uiInstall(headerBar, [libLabel, countLabel])
 
-        NSLayoutConstraint.activate([
-            uiConstraint(headerBar, .top, self, .top, .equal, 0),
-            uiConstraint(headerBar, .leading, self, .leading, .equal, 0),
-            uiConstraint(headerBar, .trailing, self, .trailing, .equal, 0),
-            uiConstraint(headerBar, .height, nil, .notAnAttribute, .equal, 28),
-            uiConstraint(libLabel, .leading, headerBar, .leading, .equal, 10),
-            uiConstraint(libLabel, .centerY, headerBar, .centerY, .equal, 0),
-            uiConstraint(countLabel, .trailing, headerBar, .trailing, .equal, -10),
-            uiConstraint(countLabel, .centerY, headerBar, .centerY, .equal, 0),
-        ])
+        uiAlign(headerBar, .top, to: self)
+        uiAlign(headerBar, .leading, to: self)
+        uiAlign(headerBar, .trailing, to: self)
+        uiDimension(headerBar, .height, 28)
+        uiAlign(libLabel, .leading, to: headerBar, offset: 10)
+        uiAlign(libLabel, .centerY, to: headerBar)
+        uiAlign(countLabel, .trailing, to: headerBar, offset: -10)
+        uiAlign(countLabel, .centerY, to: headerBar)
     }
 
     private func setupTable() {
+        let scrollView = NSScrollView()
         tableView.backgroundColor = NSColor(hex: 0x0a0a0a)
         tableView.headerView = nil
         tableView.intercellSpacing = NSSize(width: 0, height: 0)
@@ -66,12 +63,7 @@ final class TrackListView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(scrollView)
 
-        NSLayoutConstraint.activate([
-            uiConstraint(scrollView, .top, self, .top, .equal, 28),
-            uiConstraint(scrollView, .leading, self, .leading, .equal, 0),
-            uiConstraint(scrollView, .trailing, self, .trailing, .equal, 0),
-            uiConstraint(scrollView, .bottom, self, .bottom, .equal, 0),
-        ])
+        uiFill(scrollView, in: self, top: 28)
     }
 
     private func bind() {
@@ -106,11 +98,8 @@ final class TrackListView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         let track = displayedTracks[row]
         let state = AppState.shared
         let isActive = track.path == state.currentTrack?.path
-        let isPlaying = isActive && state.isPlaying
 
-        let cell = TrackCellView()
-        cell.configure(track: track, isActive: isActive, isPlaying: isPlaying)
-        return cell
+        return makeTrackCell(track: track, isActive: isActive)
     }
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
@@ -122,61 +111,47 @@ final class TrackListView: NSView, NSTableViewDataSource, NSTableViewDelegate {
 
 // MARK: - Cell
 
-private final class TrackCellView: NSView {
-    private let nameLabel = uiLabel("")
-    private let formatBadge = uiLabel("")
-    private let accentBar = NSView()
+private func makeTrackCell(track: Track, isActive: Bool) -> NSView {
+    let nameLabel = uiLabel("")
+    let formatBadge = uiLabel("")
+    let accentBar = NSView()
 
-    override init(frame: NSRect) {
-        super.init(frame: frame)
-        wantsLayer = true
+    let cell = uiContainer(border: .minY)
 
-        nameLabel.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
-        nameLabel.lineBreakMode = .byTruncatingTail
-        nameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        uiStyleLabel(formatBadge, 8, .medium, 0x444444)
-        uiBorder(formatBadge, 0x2a2a2a)
-        formatBadge.setContentHuggingPriority(.required, for: .horizontal)
-        formatBadge.setContentCompressionResistancePriority(.required, for: .horizontal)
 
-        uiBackground(accentBar, 0x4a9eff)
+    nameLabel.lineBreakMode = .byTruncatingTail
+    nameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        uiInstall(self, [accentBar, nameLabel, formatBadge])
+    uiStyleLabel(formatBadge, 8, .medium, 0x444444)
+    uiBorder(formatBadge, 0x2a2a2a)
+    formatBadge.setContentHuggingPriority(.required, for: .horizontal)
+    formatBadge.setContentCompressionResistancePriority(.required, for: .horizontal)
 
-        NSLayoutConstraint.activate([
-            uiConstraint(accentBar, .leading, self, .leading, .equal, 0),
-            uiConstraint(accentBar, .top, self, .top, .equal, 0),
-            uiConstraint(accentBar, .bottom, self, .bottom, .equal, 0),
-            uiConstraint(accentBar, .width, nil, .notAnAttribute, .equal, 2),
+    uiBackground(accentBar, 0x4a9eff)
 
-            uiConstraint(nameLabel, .leading, self, .leading, .equal, 12),
-            uiConstraint(nameLabel, .centerY, self, .centerY, .equal, 0),
-            uiConstraint(nameLabel, .trailing, formatBadge, .leading, .lessThanOrEqual, -8),
+    uiInstall(cell, [accentBar, nameLabel, formatBadge])
 
-            uiConstraint(formatBadge, .trailing, self, .trailing, .equal, -10),
-            uiConstraint(formatBadge, .centerY, self, .centerY, .equal, 0),
-        ])
-    }
+    uiAlign(accentBar, .leading, to: cell)
+    uiAlign(accentBar, .top, to: cell)
+    uiAlign(accentBar, .bottom, to: cell)
+    uiDimension(accentBar, .width, 2)
 
-    required init?(coder: NSCoder) { fatalError() }
+    uiAlign(nameLabel, .leading, to: cell, offset: 12)
+    uiAlign(nameLabel, .centerY, to: cell)
+    uiConstrain(nameLabel, .trailing, formatBadge, .leading, .lessThanOrEqual, -8)
 
-    func configure(track: Track, isActive: Bool, isPlaying: Bool) {
-        nameLabel.stringValue = track.displayTitle
-        nameLabel.textColor = isActive ? NSColor(hex: 0x4a9eff) : NSColor(hex: 0xe0e0e0)
-        nameLabel.font = NSFont.monospacedSystemFont(ofSize: 12, weight: isActive ? .bold : .regular)
+    uiAlign(formatBadge, .trailing, to: cell, offset: -10)
+    uiAlign(formatBadge, .centerY, to: cell)
 
-        let ext = URL(fileURLWithPath: track.path).pathExtension.uppercased()
-        formatBadge.stringValue = " \(ext) "
+    nameLabel.stringValue = track.displayTitle
+    uiStyleLabel(nameLabel, 12, isActive ? .bold : .regular, isActive ? 0x4a9eff : 0xe0e0e0)
 
-        layer?.backgroundColor = isActive ? NSColor(hex: 0x151515).cgColor : nil
-        accentBar.isHidden = !isActive
-    }
+    let ext = URL(fileURLWithPath: track.path).pathExtension.uppercased()
+    formatBadge.stringValue = " \(ext) "
 
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-        // Subtle row separator
-        NSColor(hex: 0x1a1a1a).setFill()
-        NSRect(x: 0, y: 0, width: bounds.width, height: 1).fill()
-    }
+    cell.layer?.backgroundColor = isActive ? NSColor(hex: 0x151515).cgColor : nil
+    accentBar.isHidden = !isActive
+
+    return cell
 }

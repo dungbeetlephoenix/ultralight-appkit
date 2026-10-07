@@ -255,7 +255,19 @@ final class AppState: ObservableObject {
 
     func nextTrack() -> Track? {
         guard let idx = currentTrackIndex else { return tracks.first }
-        if shuffle { return tracks.filter { $0.path != currentTrack?.path }.randomElement() ?? (repeatMode ? tracks.first : nil) }
+        if shuffle {
+            let path = currentTrack?.path
+            var count = 0
+            for track in tracks where track.path != path { count += 1 }
+            if count > 0 {
+                var choice = Int.random(in: 0..<count)
+                for track in tracks where track.path != path {
+                    if choice == 0 { return track }
+                    choice -= 1
+                }
+            }
+            return repeatMode ? tracks.first : nil
+        }
         let next = idx + 1
         if next < tracks.count { return tracks[next] }
         return repeatMode ? tracks.first : nil

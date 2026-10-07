@@ -1,158 +1,141 @@
 import AppKit
 import Combine
 
-final class PlaybackBarView: NSView {
-    private let spectrumView = SpectrumView()
-    private let progressBar = ProgressBarView()
-    private let timeLabel = uiLabel("0:00")
-    private let durationLabel = uiLabel("0:00")
-    private let playBtn = uiButton("▶")
-    private let prevBtn = uiButton("⏮")
-    private let nextBtn = uiButton("⏭")
-    private let shfBtn = uiButton("⤮")
-    private let rptBtn = uiButton("↻")
-    private let eqBtn2 = uiButton("EQ")
-    private let volBar = ProgressBarView()
-    private let volPctLabel = uiLabel("80%")
-    private var cancellables = Set<AnyCancellable>()
+func makePlaybackBarView(frame: NSRect = .zero) -> NSView {
+    let spectrumView = SpectrumView()
+    let progressBar = ProgressBarView()
+    let timeLabel = uiLabel("0:00")
+    let durationLabel = uiLabel("0:00")
+    let playBtn = uiButton("▶")
+    let prevBtn = uiButton("⏮")
+    let nextBtn = uiButton("⏭")
+    let shfBtn = uiButton("⤮")
+    let rptBtn = uiButton("↻")
+    let eqBtn2 = uiButton("EQ")
+    let volBar = ProgressBarView()
+    let volPctLabel = uiLabel("80%")
+    var cancellables = [AnyCancellable]()
+    let panel = uiContainer(border: .maxY, frame: frame)
+    uiBackground(panel, 0x0e0e0e)
 
-    override init(frame: NSRect) {
-        super.init(frame: frame)
-        uiBackground(self, 0x0e0e0e)
-        setup()
-        bind()
+    for lbl in [timeLabel, durationLabel] {
+        uiStyleLabel(lbl, 10, .regular, 0x555555)
     }
 
-    required init?(coder: NSCoder) { fatalError() }
-
-    private func setup() {
-        for lbl in [timeLabel, durationLabel] {
-            uiStyleLabel(lbl, 10, .regular, 0x555555)
-        }
-
-        for btn in [prevBtn, nextBtn, shfBtn, rptBtn] {
-            uiStyleButton(btn, 14, .regular, false, 0x555555)
-        }
-
-        uiStyleButton(playBtn, 14, .regular, false, 0xe0e0e0)
-        uiBorder(playBtn, 0x333333)
-
-        playBtn.target = self; playBtn.action = #selector(togglePlay)
-        prevBtn.target = self; prevBtn.action = #selector(prev)
-        nextBtn.target = self; nextBtn.action = #selector(next)
-        shfBtn.target = self; shfBtn.action = #selector(toggleShuffle)
-        rptBtn.target = self; rptBtn.action = #selector(toggleRepeat)
-
-        uiStyleButton(eqBtn2, 10, .medium, true, 0x4a9eff)
-        eqBtn2.target = self
-        eqBtn2.action = #selector(toggleEQ)
-
-        volBar.color = NSColor(hex: 0x4a9eff)
-        volBar.progress = 0.8
-        volBar.onClick = { [weak self] pct in
-            AppState.shared.volume = Float(pct)
-            self?.volPctLabel.stringValue = "\(Int(pct * 100))%"
-        }
-
-        uiStyleLabel(volPctLabel, 9, .regular, 0x555555)
-
-        progressBar.color = NSColor(hex: 0x4a9eff)
-        progressBar.onClick = { pct in
-            AppState.shared.seek(to: AppState.shared.duration * pct)
-        }
-
-        // Layout
-        spectrumView.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(spectrumView)
-
-        let progressStack = uiStack([timeLabel, progressBar, durationLabel], .horizontal, 6)
-
-        let transportStack = uiStack([prevBtn, playBtn, nextBtn], .horizontal, 6)
-
-        let volStack = uiStack([volBar, volPctLabel], .horizontal, 6)
-
-        let spacer1 = NSView(); spacer1.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let spacer2 = NSView(); spacer2.setContentHuggingPriority(.defaultLow, for: .horizontal)
-
-        let controlsStack = uiStack([shfBtn, rptBtn, spacer1, transportStack, eqBtn2, spacer2, volStack], .horizontal, 8)
-
-        let mainStack = uiStack([progressStack, controlsStack], .vertical, 4)
-        mainStack.edgeInsets = NSEdgeInsets(top: 0, left: 10, bottom: 6, right: 10)
-        mainStack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(mainStack)
-
-        NSLayoutConstraint.activate([
-            uiConstraint(spectrumView, .top, self, .top, .equal, 4),
-            uiConstraint(spectrumView, .leading, self, .leading, .equal, 10),
-            uiConstraint(spectrumView, .trailing, self, .trailing, .equal, -10),
-            uiConstraint(spectrumView, .height, nil, .notAnAttribute, .equal, 28),
-
-            uiConstraint(mainStack, .top, spectrumView, .bottom, .equal, 4),
-            uiConstraint(mainStack, .leading, self, .leading, .equal, 0),
-            uiConstraint(mainStack, .trailing, self, .trailing, .equal, 0),
-            uiConstraint(mainStack, .bottom, self, .bottom, .equal, 0),
-
-            uiConstraint(progressBar, .height, nil, .notAnAttribute, .equal, 16),
-            uiConstraint(playBtn, .width, nil, .notAnAttribute, .equal, 32),
-            uiConstraint(playBtn, .height, nil, .notAnAttribute, .equal, 32),
-            uiConstraint(volBar, .width, nil, .notAnAttribute, .equal, 60),
-            uiConstraint(volBar, .height, nil, .notAnAttribute, .equal, 4),
-            // Keep transport beside EQ and volume; only the leading spacer expands.
-            uiConstraint(spacer2, .width, nil, .notAnAttribute, .equal, 0),
-        ])
+    for btn in [prevBtn, nextBtn, shfBtn, rptBtn] {
+        uiStyleButton(btn, 14, .regular, false, 0x555555)
     }
 
-    private func bind() {
-        let state = AppState.shared
+    uiStyleButton(playBtn, 14, .regular, false, 0xe0e0e0)
+    uiBorder(playBtn, 0x333333)
 
-        state.$currentTime.sinkOnMain { [weak self] t in
-            self?.timeLabel.stringValue = Self.fmt(t)
-            let dur = AppState.shared.duration
-            self?.progressBar.progress = dur > 0 ? t / dur : 0
-        }.store(in: &cancellables)
+    uiAction(playBtn) { AppState.shared.togglePlay() }
+    uiAction(prevBtn) { AppState.shared.playPrevious() }
+    uiAction(nextBtn) { AppState.shared.playNext() }
+    uiAction(shfBtn) { AppState.shared.shuffle.toggle() }
+    uiAction(rptBtn) { AppState.shared.repeatMode.toggle() }
 
-        state.$duration.sinkOnMain { [weak self] d in
-            self?.durationLabel.stringValue = Self.fmt(d)
-        }.store(in: &cancellables)
+    uiStyleButton(eqBtn2, 10, .medium, true, 0x4a9eff)
+    uiAction(eqBtn2) { AppState.shared.showEQ.toggle() }
 
-        state.$isPlaying.sinkOnMain { [weak self] p in
-            self?.playBtn.title = p ? "⏸" : "▶"
-        }.store(in: &cancellables)
-
-        state.$shuffle.sinkOnMain { [weak self] s in
-            self?.shfBtn.contentTintColor = s ? NSColor(hex: 0x4a9eff) : NSColor(hex: 0x444444)
-        }.store(in: &cancellables)
-
-        state.$repeatMode.sinkOnMain { [weak self] r in
-            self?.rptBtn.contentTintColor = r ? NSColor(hex: 0x4a9eff) : NSColor(hex: 0x444444)
-        }.store(in: &cancellables)
-
-        state.$volume.sinkOnMain { [weak self] v in
-            self?.volBar.progress = Double(v)
-            self?.volPctLabel.stringValue = "\(Int(v * 100))%"
-        }.store(in: &cancellables)
-
-        state.$waveformData.sinkOnMain { [weak self] w in
-            self?.progressBar.waveformData = w
-        }.store(in: &cancellables)
+    volBar.color = NSColor(hex: 0x4a9eff)
+    volBar.progress = 0.8
+    volBar.onClick = { [weak volPctLabel] pct in
+        AppState.shared.volume = Float(pct)
+        volPctLabel?.stringValue = "\(Int(pct * 100))%"
     }
 
-    @objc private func togglePlay() { AppState.shared.togglePlay() }
-    @objc private func prev() { AppState.shared.playPrevious() }
-    @objc private func next() { AppState.shared.playNext() }
-    @objc private func toggleShuffle() { AppState.shared.shuffle.toggle() }
-    @objc private func toggleRepeat() { AppState.shared.repeatMode.toggle() }
-    @objc private func toggleEQ() { AppState.shared.showEQ.toggle() }
+    uiStyleLabel(volPctLabel, 9, .regular, 0x555555)
 
-    private static func fmt(_ s: Double) -> String {
-        String(format: "%d:%02d", Int(s) / 60, Int(s) % 60)
+    progressBar.color = NSColor(hex: 0x4a9eff)
+    progressBar.onClick = { pct in
+        AppState.shared.seek(to: AppState.shared.duration * pct)
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-        NSColor(hex: 0x1a1a1a).setFill()
-        NSRect(x: 0, y: bounds.height - 1, width: bounds.width, height: 1).fill()
-    }
+    // Layout
+    spectrumView.translatesAutoresizingMaskIntoConstraints = false
+    panel.addSubview(spectrumView)
+
+    let progressStack = uiStack([timeLabel, progressBar, durationLabel], .horizontal, 6)
+
+    let transportStack = uiStack([prevBtn, playBtn, nextBtn], .horizontal, 6)
+
+    let volStack = uiStack([volBar, volPctLabel], .horizontal, 6)
+
+    let spacer1 = NSView(); spacer1.setContentHuggingPriority(.defaultLow, for: .horizontal)
+    let spacer2 = NSView(); spacer2.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
+    let controlsStack = uiStack([shfBtn, rptBtn, spacer1, transportStack, eqBtn2, spacer2, volStack], .horizontal, 8)
+
+    let mainStack = uiStack([progressStack, controlsStack], .vertical, 4)
+    mainStack.edgeInsets = NSEdgeInsets(top: 0, left: 10, bottom: 6, right: 10)
+    mainStack.translatesAutoresizingMaskIntoConstraints = false
+    panel.addSubview(mainStack)
+
+    uiAlign(spectrumView, .top, to: panel, offset: 4)
+    uiAlign(spectrumView, .leading, to: panel, offset: 10)
+    uiAlign(spectrumView, .trailing, to: panel, offset: -10)
+    uiDimension(spectrumView, .height, 28)
+
+    uiConstrain(mainStack, .top, spectrumView, .bottom, .equal, 4)
+    uiAlign(mainStack, .leading, to: panel)
+    uiAlign(mainStack, .trailing, to: panel)
+    uiAlign(mainStack, .bottom, to: panel)
+
+    uiDimension(progressBar, .height, 16)
+    uiSize(playBtn, width: 32, height: 32)
+    uiSize(volBar, width: 60, height: 4)
+    // Keep transport beside EQ and volume; only the leading spacer expands.
+    uiDimension(spacer2, .width, 0)
+
+    let state = AppState.shared
+
+    state.$currentTime.sinkOnMain { [weak panel] t in
+        guard panel != nil else { return }
+        timeLabel.stringValue = formatPlaybackTime(t)
+        let dur = AppState.shared.duration
+        progressBar.progress = dur > 0 ? t / dur : 0
+    }.store(in: &cancellables)
+
+    state.$duration.sinkOnMain { [weak panel] d in
+        guard panel != nil else { return }
+        durationLabel.stringValue = formatPlaybackTime(d)
+    }.store(in: &cancellables)
+
+    state.$isPlaying.sinkOnMain { [weak panel] p in
+        guard panel != nil else { return }
+        playBtn.title = p ? "⏸" : "▶"
+    }.store(in: &cancellables)
+
+    state.$shuffle.sinkOnMain { [weak panel] s in
+        guard panel != nil else { return }
+        shfBtn.contentTintColor = s ? NSColor(hex: 0x4a9eff) : NSColor(hex: 0x444444)
+    }.store(in: &cancellables)
+
+    state.$repeatMode.sinkOnMain { [weak panel] r in
+        guard panel != nil else { return }
+        rptBtn.contentTintColor = r ? NSColor(hex: 0x4a9eff) : NSColor(hex: 0x444444)
+    }.store(in: &cancellables)
+
+    state.$volume.sinkOnMain { [weak panel] v in
+        guard panel != nil else { return }
+        volBar.progress = Double(v)
+        volPctLabel.stringValue = "\(Int(v * 100))%"
+    }.store(in: &cancellables)
+
+    state.$waveformData.sinkOnMain { [weak panel] w in
+        guard panel != nil else { return }
+        progressBar.waveformData = w
+    }.store(in: &cancellables)
+
+    uiRetain(cancellables, on: panel)
+    return panel
+}
+
+private func formatPlaybackTime(_ s: Double) -> String {
+
+    String(format: "%d:%02d", Int(s) / 60, Int(s) % 60)
+
 }
 
 // Clickable progress/volume bar with optional waveform
