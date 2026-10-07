@@ -87,6 +87,6 @@ The recorded build passes 779 native assertions and 53 tooling tests, plus alloc
 
 The runner invalidates old success reports before starting. Missing fixtures fail the run; timed-out test processes are stopped and leave diagnostics. Each release uses a private gate report tied to its source hashes, builds in a fresh staging directory, and replaces the previous output only after all checks pass. The disk image is mounted read-only and its app is compared with the verified bundle.
 
-The [verification record](docs/evidence/README.md) separates local results from outstanding checks. The macOS 14 deployment target still requires a successful runtime check on that OS. Public signing, notarization, and a downloaded-app launch also require their own recorded results. Device changes, Bluetooth behavior, and codec-specific edge cases extend beyond the current fixtures.
+The [verification record](docs/evidence/README.md) separates local results from outstanding checks. The same compiled compatibility fixture passes on arm64 macOS 14.8.9 and 26.6.2 in hosted CI. Public signing, notarization, and a downloaded-app launch also require their own recorded results. Device changes, Bluetooth behavior, and codec-specific edge cases extend beyond the current fixtures.
 
 See [BUILDING.md](BUILDING.md) to reproduce the build and its checks.

@@ -4,7 +4,9 @@ A native macOS music player built around a 200 KB size budget.
 
 Ultralight plays your local music library with an eight-band equalizer, per-track settings, and audio visualization. Written in Swift with AppKit, it uses the audio frameworks included with macOS and has no third-party dependencies.
 
-![Ultralight showing a music library, spectrum display, waveform, and equalizer](screenshot.png)
+![Ultralight showing a demo music library, spectrum display, waveform, and equalizer](screenshot.png)
+
+*The native interface, shown with demo tracks and illustrative audio data.*
 
 ## Features
 
@@ -18,7 +20,7 @@ Audio decoding is provided by macOS. File support depends on the codec and conta
 
 ## Build and run
 
-Use an Apple silicon Mac with Xcode installed. The deployment target is macOS 14; the recorded runtime checks were performed on macOS 26.7. See the [build guide](BUILDING.md) for the exact toolchain and [verification record](docs/evidence/README.md) for compatibility status.
+Use an Apple silicon Mac with Xcode installed. The app targets macOS 14 or later. See the [build guide](BUILDING.md) for the reference toolchain and [verification record](docs/evidence/README.md) for tested environments.
 
 ```sh
 git clone https://github.com/dungbeetlephoenix/ultralight-appkit.git
@@ -51,7 +53,7 @@ The release builder enforces a **200,000-byte limit on the complete app bundle**
 
 These are logical file sizes from the verified Apple silicon build. The app is ad-hoc signed for local use; a notarized public download is not yet available. Developer ID signing and notarization must meet the same size limit.
 
-The recorded build passes 779 native assertions, 53 tooling tests, and the allocation, signature, and disk-image checks. Three reference screenshots remain byte-for-byte unchanged. [Measurements and verification scope →](docs/evidence/README.md)
+The recorded build passes 779 native assertions, 53 tooling tests, and the allocation, signature, and disk-image checks. Hosted compatibility checks also pass on macOS 14 and 26. Three reference screenshots remain byte-for-byte unchanged. [Measurements and verification scope →](docs/evidence/README.md)
 
 ## Engineering
 

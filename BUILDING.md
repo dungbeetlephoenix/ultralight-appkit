@@ -11,7 +11,7 @@ Ultralight uses Swift, AppKit, and the audio frameworks included with macOS. It 
 | Python tooling | Python 3.9 or later; standard library only |
 | Full native verification | A logged-in macOS desktop with an available audio output device |
 
-The deployment target is not a runtime test result: macOS 14 verification is still pending. The [verification record](docs/evidence/README.md) distinguishes completed checks from outstanding release work.
+The native compatibility fixture has passed on arm64 macOS 14.8.9 and 26.6.2 in hosted CI. The full release gates were run on the reference macOS 26.7 desktop. The [verification record](docs/evidence/README.md) describes each check and its scope.
 
 The release script requires native Apple silicon and Apple Swift 6.3.3. Select the intended Xcode using `DEVELOPER_DIR` or `xcode-select`. A different compiler can change code generation, linker support, and artifact size.
 
@@ -93,7 +93,7 @@ Use a Developer ID Application identity, rather than an Apple Development certif
 
 ## CI and runtime compatibility
 
-The [source workflow](.github/workflows/checks.yml) is configured to run the Python tooling tests, build from a fresh SwiftPM directory with Xcode 26.6, and compile a signed native compatibility fixture. Its macOS 14 and 26 jobs run the same compiled fixture, so the comparison does not depend on building with a different compiler on each OS. Hosted CI results have not yet been recorded for this release.
+The [source workflow](.github/workflows/checks.yml) is configured to run the Python tooling tests, build from a fresh SwiftPM directory with Xcode 26.6, and compile a signed native compatibility fixture. Its macOS 14 and 26 jobs run the same compiled fixture, so the comparison does not depend on building with a different compiler on each OS. The [recorded hosted run](https://github.com/dungbeetlephoenix/ultralight-appkit/actions/runs/37575656934) passed all four jobs; its build inputs match the measured release.
 
 The fixture exercises AppKit loading and drawing, Combine notifications, accessibility actions, icon decoding, native audio-file decoding, and asynchronous metadata loading without playing audio. It is a runtime smoke test. It does not replace the full release gates, exact image comparisons, or listening tests.
 

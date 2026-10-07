@@ -23,7 +23,7 @@
 
 ### Release status
 
-The recorded build is ad-hoc signed and verified for local use. macOS 14 runtime compatibility, hosted CI execution, Developer ID signing, Apple notarization, and launch after download remain unverified for this release. See the [verification record](docs/evidence/README.md) for completed checks and their scope, and [BUILDING.md](BUILDING.md) for reproduction commands.
+The recorded build is ad-hoc signed and verified for local use. Hosted build and tooling checks pass, along with the native compatibility fixture on macOS 14 and 26. Developer ID signing, Apple notarization, and launch after download remain unverified for this release. See the [verification record](docs/evidence/README.md) for completed checks and their scope, and [BUILDING.md](BUILDING.md) for reproduction commands.
 
 ## Version policy
 
