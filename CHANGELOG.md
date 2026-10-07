@@ -1,18 +1,32 @@
-# Changes
+# Changelog
 
-## 2.2.0 — unreleased
+## 2.2.0 — Unreleased
 
-- A 200,000-byte budget for the complete signed Apple-silicon app, enforced by the release build.
-- Corrected queued playback, pause/seek timing, stale background work, stereo analysis, waveform tails, and EQ bypass.
-- Shared native UI construction and FFT storage, with no third-party runtime or decoder.
-- Keyboard and accessibility support for the custom controls; descriptive control labels and tooltips.
-- Live folder updates in Settings and explicit targeting of the player window from the menu bar.
-- A small application icon and a repeatable icon-generation script.
-- Isolated release staging, failure-safe checks, mounted-image verification, and optional Developer ID signing/notarization.
-- Source, runtime-compatibility, and desktop-release workflows; published measurement evidence and separate user/build documentation.
+### Playback and analysis
 
-The current artifact is ad-hoc signed for local use. Public signing and the minimum-OS runtime check remain release prerequisites until their results are recorded.
+- Correct queued playback and pause/seek timing, and prevent stale background work from changing a newer playback session.
+- Analyze stereo channels correctly, include waveform tails, and apply EQ bypass consistently.
+- Reuse FFT storage and share native UI construction to reduce code and allocation overhead while retaining the player’s features.
+
+### Interface
+
+- Add keyboard and accessibility support to custom controls, including descriptive labels, values, actions, and tooltips.
+- Update the Settings folder list as folders change and make menu-bar actions target the player window explicitly.
+- Add an application icon with a reproducible generation script.
+
+### Build and verification
+
+- Enforce a 200,000-byte limit for both the signed executable and complete Apple-silicon app, plus a 120,000-byte disk-image limit.
+- Stage releases in isolation, preserve previous output on failure, and verify the packaged app by mounting the disk image read-only.
+- Add an optional Developer ID signing and notarization flow with the same verification and size limits.
+- Add source, runtime-compatibility, and desktop-release workflows, together with public measurement evidence and build documentation.
+
+### Release status
+
+The recorded build is ad-hoc signed and verified for local use. macOS 14 runtime compatibility, hosted CI execution, Developer ID signing, Apple notarization, and launch after download remain unverified for this release. See the [verification record](docs/evidence/README.md) for completed checks and their scope, and [BUILDING.md](BUILDING.md) for reproduction commands.
 
 ## Version policy
 
-`VERSION` is the single source for the bundle version. Releases use an annotated `vMAJOR.MINOR.PATCH` Git tag on the reviewed commit. Add the release date and remove “unreleased” only when the matching app, disk image, checksums, and verification evidence are ready. Rebuild and remeasure after any resource, metadata, or signing change. Never reuse a tag for different bytes.
+`VERSION` is the source of truth for the bundle version. Tag releases with an annotated `vMAJOR.MINOR.PATCH` tag on the reviewed commit.
+
+Add the release date and remove “Unreleased” when the matching app, disk image, checksums, and verification evidence are ready. Rebuild and remeasure after any resource, metadata, or signing change. A release tag must always identify the same source and artifacts.

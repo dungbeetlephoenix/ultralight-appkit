@@ -1,45 +1,64 @@
 # Ultralight
 
-A small native music player for the Mac. Your library, an equalizer, and the music.
+A native macOS music player built around a 200 KB size budget.
 
-![Ultralight with demo tracks](screenshot.png)
+Ultralight plays your local music library with an eight-band equalizer, per-track settings, and audio visualization. Written in Swift with AppKit, it uses the audio frameworks included with macOS and has no third-party dependencies.
 
-Ultralight uses AppKit and the audio frameworks already on your Mac. There are no third-party dependencies or bundled runtimes. The release build enforces a **200,000-byte limit for the complete signed app**. The verified local build is **192,812 bytes**, including its icon, license, and signature; the disk image is **106,770 bytes**. [Exact measurements](docs/evidence/release.json).
+![Ultralight showing a music library, spectrum display, waveform, and equalizer](screenshot.png)
 
-It includes an eight-band equalizer with per-track settings, spectral analysis with suggested EQ, a live spectrum, waveform seeking, shuffle, repeat, media keys, and menu-bar controls. Tracks with matching decoded sample rates and channel counts can play continuously; other transitions use normal next-track playback. Codec support comes from macOS.
+## Features
 
-## Get started
+- **Local library.** Add music folders or drop them onto the player. Ultralight scans subfolders and reads embedded metadata; files stay in their original locations.
+- **Per-track equalization.** Adjust the eight-band parametric EQ and select **SAVE** to keep a track's settings. Track analysis can apply an initial EQ curve when no saved profile exists.
+- **Audio visualization.** A live spectrum shows the playing audio; the track waveform supports seeking.
+- **Native controls.** Keyboard shortcuts, media keys, menu-bar playback controls, and accessible buttons and sliders.
+- **Continuous playback.** Compatible tracks are scheduled back-to-back, with shuffle and repeat support. Continuous scheduling requires matching decoded sample rates and channel counts; other transitions use normal next-track playback.
 
-The release target is Apple silicon and macOS 14 or later. The current verified environment is macOS 26.7; the macOS 14 runtime check is pending. See [verification status](docs/evidence/README.md) for the exact scope.
+Audio decoding is provided by macOS. File support depends on the codec and container; Ultralight does not bundle additional decoders.
 
-To build and run from source with Xcode installed:
+## Build and run
+
+Use an Apple silicon Mac with Xcode installed. The deployment target is macOS 14; the recorded runtime checks were performed on macOS 26.7. See the [build guide](BUILDING.md) for the exact toolchain and [verification record](docs/evidence/README.md) for compatibility status.
 
 ```sh
+git clone https://github.com/dungbeetlephoenix/ultralight-appkit.git
+cd ultralight-appkit
 swift run Ultralight
 ```
 
-Open Settings with the gear button to add music folders, or drop a folder onto the player. Dropping a file adds its containing folder. Ultralight scans subfolders automatically. Your music stays where it is. Double-click a track to play it.
+Open **Settings** to add a music folder, then double-click a track. You can also drop a folder onto the window. Dropping an individual file adds its containing folder.
 
-| Control | Action |
+| Shortcut | Action |
 | --- | --- |
 | Space | Play or pause |
-| Left / Right | Seek five seconds |
+| Left / Right | Seek backward or forward five seconds |
 | Command–Left / Command–Right | Previous or next track |
 | Up / Down | Adjust volume |
-| EQ | Show or hide the equalizer |
 
-Player shortcuts yield to focused controls. Sliders use the arrow keys to adjust their own values. Controls also expose names, values, and actions to VoiceOver. Tab navigation follows your macOS keyboard-navigation settings.
+Focused controls handle their own keys: arrows adjust the selected slider, and Space activates a focused button. Tab navigation follows the macOS keyboard-navigation setting. Closing the window keeps the player available in the menu bar; **Show Player** reopens it and **Quit** exits.
 
-Closing the player window keeps the app available in the menu bar. Choose **Show Player** to reopen it or **Quit** to exit. Folder preferences, saved EQ, and cached analysis live in `~/Library/Application Support/ultralight/`.
+Preferences, saved EQ, and analysis caches are stored in `~/Library/Application Support/ultralight/`.
 
-## Build and verify
+## Size and verification
 
-```sh
-python3 Scripts/release.py --dmg UDZO
-```
+The release builder enforces a **200,000-byte limit on the complete app bundle**, including its icon, license, metadata, and signature.
 
-This runs the quality gates, builds and signs the app, checks its size, and verifies the contents of the disk image. A failed run leaves the previous release intact. The output is written to `artifacts/release/`.
+| Measured artifact | Size |
+| --- | ---: |
+| Complete app bundle | **192,812 bytes** |
+| Executable | 183,600 bytes |
+| Compressed disk image | 106,770 bytes |
 
-The default artifact is ad-hoc signed for local use. Public distribution requires its own Developer ID signing and notarization run. Build prerequisites, verification commands, and that signing flow are in [BUILDING.md](BUILDING.md).
+These are logical file sizes from the verified Apple silicon build. The app is ad-hoc signed for local use; a notarized public download is not yet available. Developer ID signing and notarization must meet the same size limit.
 
-Read [the engineering report](HILLCLIMB.md) for the size work and its tradeoffs, or [the changelog](CHANGELOG.md) for this release. The code is available under the [MIT license](LICENSE).
+The recorded build passes 779 native assertions, 53 tooling tests, and the allocation, signature, and disk-image checks. Three reference screenshots remain byte-for-byte unchanged. [Measurements and verification scope →](docs/evidence/README.md)
+
+## Engineering
+
+The size work combines shared AppKit construction, reusable FFT storage, full link-time optimization, and a verified native file layout. The [engineering notes](ENGINEERING.md) explain the architecture, measured savings, and maintenance tradeoffs.
+
+For development and release procedures, see [BUILDING.md](BUILDING.md). Changes are recorded in the [changelog](CHANGELOG.md).
+
+## License
+
+[MIT](LICENSE).

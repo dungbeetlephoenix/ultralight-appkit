@@ -1,21 +1,45 @@
-# Verification record
+# Build measurements and verification
 
-`release.json` is a sanitized export of the completed local build. It records every production/test/build input hash, the compiler and flags, each app-file hash, exact sizes, and gate outcomes. Regenerate it with `python3 Scripts/evidence.py` after a successful release. [history.json](history.json) preserves the prior size measurements and available artifact hashes. Earlier engineering reports remain in Git history; reproducing the current build does not require the experimental scratch directories.
+This directory records the measured 2.2.0 build at source commit [`dbd42ad`](https://github.com/dungbeetlephoenix/ultralight-appkit/commit/dbd42ad2d873ab2ca0aa219466ef106cdbb05129). The complete app is **192,812 bytes** with an ad-hoc signature. Documentation changes after that commit do not alter the measured build inputs.
 
-[observation-comparison.json](observation-comparison.json) records the independent comparison against automatic Combine notifications: 343 assertions passed on each implementation, with 97 identical event traces. The comparison candidate differs from the final AppState only by three explanatory comment lines. The current release reruns that observation contract as a mandatory gate.
+## Recorded results
 
-## Scope
-
-| Check | Status |
+| Check | Result |
 | --- | --- |
-| Full local release gates, signed app, mounted disk-image payload | Passed: 779 native assertions, 53 tooling tests, allocation and signature/layout gates; 192,812-byte app |
-| Fresh SwiftPM development and full-LTO builds | Passed in separate empty build directories |
-| Native compatibility fixture on macOS 26.7 | [11 checks passed](compatibility-macos-26.json) with the same source hashes as the release |
-| Same compiled fixture on macOS 14 | Pending; no local macOS 14 runtime available |
-| Hosted CI workflows | Prepared; not run before source push |
-| Developer ID signature and Apple notarization | Pending; no Developer ID identity available locally |
-| Downloaded-app launch under quarantine | Pending public signing/distribution run |
+| Native behavior | 779 assertions passed across audio, UI, playback, continuity, state, observation, binding, and drop fixtures |
+| Release tooling | 53 tests passed, including failure paths and rollback |
+| Allocation | Reusable FFT workspace meets the allocation gate |
+| Visual comparison | Three reference screenshots match byte-for-byte |
+| App integrity | Native signature, tamper checks, and executable-layout checks passed |
+| Disk image | Mounted read-only; packaged app files and hashes match the verified bundle |
+| SwiftPM | Fresh development and full-LTO release builds passed |
+| macOS 26.7 runtime | [11 compatibility checks passed](compatibility-macos-26.json) with the same source hashes as the measured release |
 
-The source workflow has a macOS 14 runtime job. Its configuration is not evidence that the job passed. The full release workflow needs a trusted desktop runner; it does not substitute skipped tests when audio or a GUI is unavailable.
+These results cover generated audio fixtures and the exercised interface and state paths. They are not a complete certification of codec support, audio hardware, or accessibility workflows.
 
-The app-size limit includes all bundle resources and signature overhead. The download-size limit includes the final signed/stapled disk image when that public flow is used. A build exceeding either limit is rejected.
+## Distribution and compatibility status
+
+The recorded build targets arm64 macOS 14.0. A successful macOS 14 runtime run, Developer ID signing and notarization, and a downloaded-app launch remain outstanding release checks. The measured artifact is intended for local use.
+
+Hosted automation is tracked separately in [GitHub Actions](https://github.com/dungbeetlephoenix/ultralight-appkit/actions). The source workflow is configured to run the same compiled compatibility fixture on macOS 14 and 26. The full release workflow requires a trusted desktop runner with audio output and a logged-in graphical session; it does not skip those gates when the environment is unavailable.
+
+## Evidence files
+
+| File | Contents |
+| --- | --- |
+| [release.json](release.json) | Exact sizes, app-file hashes, source/test/build input hashes, compiler flags, signature details, and gate outcomes |
+| [history.json](history.json) | Earlier size measurements and available artifact hashes |
+| [compatibility-macos-26.json](compatibility-macos-26.json) | Runtime environment and individual compatibility results |
+| [observation-comparison.json](observation-comparison.json) | Comparison of automatic and explicit Combine notifications: 343 assertions per implementation and 97 identical event traces |
+
+The observation-comparison candidate differs from the measured `AppState` only by three explanatory comment lines. The release reruns the same observation contract as a mandatory gate.
+
+## Reproducing the record
+
+Follow [BUILDING.md](../../BUILDING.md) to produce a verified release, then export its public summary:
+
+```sh
+python3 Scripts/evidence.py
+```
+
+The exporter verifies current source hashes, the complete app inventory, and the disk-image hash before writing `release.json`. Full logs remain in the generated release directory. The app budget includes all resources and signature overhead; the disk-image budget includes the signed and stapled image when the public signing flow is used.

@@ -1,59 +1,85 @@
 # Building Ultralight
 
-Ultralight has no package dependencies. Development uses SwiftPM; the measured release uses one compiler invocation with the policy in `Scripts/build_config.py`.
+Ultralight uses Swift, AppKit, and the audio frameworks included with macOS. It has no third-party package dependencies. Use SwiftPM for development and the release script for a measured, verified app bundle. The release policy lives in [Scripts/build_config.py](Scripts/build_config.py); [ENGINEERING.md](ENGINEERING.md) explains the size decisions and their tradeoffs.
 
-## Environments
+## Requirements
 
-| Purpose | Environment |
+| Purpose | Requirement |
 | --- | --- |
-| Measured release | Apple silicon, macOS 26.7, Xcode 26.6 (17F113), Apple Swift 6.3.3 |
-| Deployment target | macOS 14.0, arm64 |
-| Tooling tests | Python 3.9 or later, standard library only |
-| Full native gates | A logged-in macOS desktop with an available audio output device |
+| Release target | Apple silicon (`arm64`), macOS 14.0 or later |
+| Reference build environment | macOS 26.7, Xcode 26.6 (17F113), Apple Swift 6.3.3 |
+| Python tooling | Python 3.9 or later; standard library only |
+| Full native verification | A logged-in macOS desktop with an available audio output device |
 
-The UI fixtures fix layout and bitmap scales, but fonts and AppKit still depend on the OS. Exact image comparisons belong on the reference desktop. The audio transport checks use zero output volume; offline continuity checks never route audio to hardware. All test settings and generated music are isolated from your library.
+The deployment target is not a runtime test result: macOS 14 verification is still pending. The [verification record](docs/evidence/README.md) distinguishes completed checks from outstanding release work.
 
-The release script checks the compiler and architecture before building. Choosing another Xcode may change generated code, accepted linker flags, and artifact size. The 200,000-byte limit is enforced on the actual signed result.
+The release script requires native Apple silicon and Apple Swift 6.3.3. Select the intended Xcode using `DEVELOPER_DIR` or `xcode-select`. A different compiler can change code generation, linker support, and artifact size.
+
+The visual checks use fixed layout and bitmap scales, but rendering also depends on AppKit and system fonts. Run exact image comparisons on the reference desktop. Transport tests use zero output volume; offline continuity tests do not route audio to hardware. Test settings and generated audio are isolated from the music library.
 
 ## Development
+
+Run from the repository root:
 
 ```sh
 swift run Ultralight
 ```
 
-For a clean SwiftPM release comparison:
+To build the optimized SwiftPM executable:
 
 ```sh
 swift build -c release -debug-info-format none --experimental-lto-mode full
 ```
 
-SwiftPM needs its own LTO switch so it expects bitcode correctly. Do not substitute `-num-threads 0` or put only `-lto=llvm-full` in the manifest: both have produced missing-object failures in clean builds.
+Use SwiftPM's `--experimental-lto-mode full` option so its build plan handles LLVM bitcode correctly. Adding only `-lto=llvm-full` to the package manifest is not equivalent. The packaged release uses a single compiler invocation and measures the result after stripping and signing.
 
-## Verification and release
+## Verify and package
+
+Build the app and a compressed disk image:
 
 ```sh
-python3 -m unittest discover -s Tests/tooling -v
-python3 Scripts/check.py
 python3 Scripts/release.py --dmg UDZO
 ```
 
-`check.py` runs the executable and tooling tests. `release.py` reruns those gates against a snapshot of the source hashes, then builds into a fresh staging directory. It strips and signs the app, checks its seal and memory-layout contract, measures every bundle file, creates the disk image, and mounts it read-only to compare the packaged app. Only a completely verified result replaces the previous release directory. The old directory is preserved so a running executable is not overwritten in place.
+This command runs all release gates, verifies that the source and build policy remain unchanged, then builds in a fresh staging directory. It strips and signs the app, checks the signature and memory layout, and measures the complete bundle. It also mounts the disk image read-only and verifies that every packaged file matches the app that passed validation.
 
-The limits are 200,000 bytes for the executable, 200,000 bytes for all regular files in the app bundle, and 120,000 bytes for the disk image. These are logical file sizes, not disk allocation or RAM use. Resources, the bundled MIT notice, metadata, and signature bytes count. Source, tests, and documentation do not ship in the app.
+Successful output is written to `artifacts/release/`. A failed run leaves the previous release intact. When a verified build replaces an existing release, the previous directory is retained separately so a running executable is not overwritten.
 
-Each release includes `size.json`, source and file hashes, compiler flags, and its own `gates/` reports. Export the public summary after the final source build:
+The release enforces these limits on the finished artifacts:
+
+| Artifact | Maximum size |
+| --- | ---: |
+| Signed executable | 200,000 bytes |
+| Complete app bundle | 200,000 bytes |
+| Disk image | 120,000 bytes |
+
+App size is the sum of regular-file lengths, including the icon, MIT license notice, bundle metadata, and signature. These are logical byte counts, not disk allocation or memory use. Source, tests, and documentation are excluded from the app. Developer ID signatures and notarization tickets count toward the same limits.
+
+To run the release gates without packaging:
+
+```sh
+python3 Scripts/check.py
+```
+
+For the Python tooling tests alone, including failure handling and release rollback:
+
+```sh
+python3 -m unittest discover -s Tests/tooling -v
+```
+
+Each completed release contains `size.json`, compiler flags, source and artifact hashes, and the gate reports in `gates/`. Export the public evidence after a successful release build:
 
 ```sh
 python3 Scripts/evidence.py
 ```
 
-A source archive without Git history can still build; its report records no Git commit and retains the complete source hashes. Git checkouts should be clean when preparing a named release.
+Use a clean Git checkout when preparing a named release. Source archives can also build: reports record no Git commit when repository history is unavailable, while retaining the full source hashes.
 
-## Public signing
+## Signing for distribution
 
-The default build uses native ad-hoc signing. It is suitable for local development and measurement. The small certificate reservation used in that mode is not used for Developer ID signatures.
+The default release is ad-hoc signed for local use. Local signature verification does not establish Apple notarization or successful launch after download. **Developer ID signing, notarization, and launch under download quarantine have not yet been verified for 2.2.0.**
 
-With a Developer ID Application identity and a notarization profile already available in your keychain:
+The release script supports that distribution flow. With a Developer ID Application identity and a stored notarization profile in the keychain, run:
 
 ```sh
 python3 Scripts/release.py --dmg UDZO \
@@ -61,15 +87,17 @@ python3 Scripts/release.py --dmg UDZO \
   --notary-profile ultralight-notary
 ```
 
-The public flow uses the hardened runtime, secure timestamp, native signature validation, Apple's notarization service, and stapling. It verifies the finished result and remeasures the overhead under the same byte limits. Do not put signing passwords in source files or command arguments. See [Apple's notarization guide](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution) for creating the keychain profile.
+This path enables the hardened runtime and secure timestamps, submits the app and disk image to Apple's notarization service, staples accepted tickets, and verifies the finished artifacts. It measures the resulting signature and ticket overhead before accepting the release. The compact signature reservation used for ad-hoc builds does not apply to Developer ID signing.
 
-A development certificate is not a Developer ID Application identity. The current local environment has no Developer ID identity, so the public-signing flow has not been exercised against Apple's service. An ad-hoc signature passing local verification does not establish notarization or a successful downloaded-app launch.
+Use a Developer ID Application identity, rather than an Apple Development certificate. Keep credentials in the keychain, not in source files or command arguments. Apple's [notarization guide](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution) covers identity and profile setup.
 
-## CI and minimum-OS checks
+## CI and runtime compatibility
 
-The source workflow runs Python failure-path tests, performs a fresh SwiftPM build with Xcode 26.6, and compiles a signed native compatibility fixture. That exact fixture is then run on macOS 14 and 26. It checks loading, AppKit drawing, Combine, native accessibility actions, icon decoding, native audio-file decoding, and asynchronous metadata without playing audio. It is a runtime smoke test, not a substitute for the full release gates or listening tests.
+The [source workflow](.github/workflows/checks.yml) is configured to run the Python tooling tests, build from a fresh SwiftPM directory with Xcode 26.6, and compile a signed native compatibility fixture. Its macOS 14 and 26 jobs run the same compiled fixture, so the comparison does not depend on building with a different compiler on each OS. Hosted CI results have not yet been recorded for this release.
 
-To reproduce the fixture locally:
+The fixture exercises AppKit loading and drawing, Combine notifications, accessibility actions, icon decoding, native audio-file decoding, and asynchronous metadata loading without playing audio. It is a runtime smoke test. It does not replace the full release gates, exact image comparisons, or listening tests.
+
+Build and run it locally with fresh bundle and output directories:
 
 ```sh
 python3 Tests/compatibility/run.py build --bundle artifacts/compatibility
@@ -77,20 +105,20 @@ python3 Tests/compatibility/run.py run --bundle artifacts/compatibility \
   --output artifacts/compatibility-run --expect-os 26
 ```
 
-Use fresh output directories. Transfer the bundle unchanged to a second Mac and run the same command there with `--expect-os 14`. Each run checks its bundle hashes and signature, and records the actual host OS and architecture.
+To check another Mac, transfer the bundle unchanged and run it there with `--expect-os 14`. Each run validates the bundled file hashes and signature, and records the actual host OS and architecture. A successful run on macOS 26 does not establish macOS 14 compatibility.
 
-Exact visual and audio gates have a separate manual workflow for a trusted desktop runner labelled `ultralight-desktop`. It runs only from `main`; public pull requests never execute on that personal runner. Provisioning that runner and executing the hosted workflows are separate from committing their configuration.
+The [desktop release workflow](.github/workflows/release-check.yml) provides a separate manual job for a trusted runner labelled `ultralight-desktop`. It requires the reference desktop environment and runs only from `main`; public pull requests do not execute on that runner. Runner provisioning and successful workflow execution must be verified separately from the configuration.
 
-GitHub's [macOS runner inventory](https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md) supplies the Xcode path. Its [macOS 14 retirement notice](https://github.com/actions/runner-images/issues/13518) schedules removal for November 2, 2026. Replace that hosted runtime job with a maintained macOS 14 machine before retirement; removing the check does not establish compatibility.
+GitHub's [runner inventory](https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md) documents the selected Xcode path. Its [macOS 14 retirement notice](https://github.com/actions/runner-images/issues/13518) schedules removal for November 2, 2026. Continued minimum-OS coverage will require a maintained macOS 14 runner after that date.
 
-## Resources and versioning
+## Version and resources
 
-`VERSION` supplies the bundle version. Release tags use `vMAJOR.MINOR.PATCH` and refer to the reviewed source commit. Follow the [changelog's release policy](CHANGELOG.md#version-policy).
+[VERSION](VERSION) supplies both bundle version fields. Release tags use `vMAJOR.MINOR.PATCH` and identify the reviewed source commit; see the [version policy](CHANGELOG.md#version-policy).
 
-The original icon is drawn from the vector instructions in `Scripts/icon.swift`. Regenerate its losslessly compressed 32- and 256-pixel representations with:
+The application icon is drawn from the vector instructions in [Scripts/icon.swift](Scripts/icon.swift). Regenerate its losslessly compressed 32- and 256-pixel representations with:
 
 ```sh
 python3 Scripts/make_icon.py
 ```
 
-The icon resource is included in source hashes and the bundle's byte budget. Changing it requires a new release measurement.
+The icon is included in source hashes and the app's size budget. Changes to resources, metadata, or signing require a new release build and measurement.
