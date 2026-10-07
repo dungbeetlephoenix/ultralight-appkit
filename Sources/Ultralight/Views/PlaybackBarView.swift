@@ -125,34 +125,34 @@ final class PlaybackBarView: NSView {
     private func bind() {
         let state = AppState.shared
 
-        state.$currentTime.receive(on: RunLoop.main).sink { [weak self] t in
+        state.$currentTime.sinkOnMain { [weak self] t in
             self?.timeLabel.stringValue = Self.fmt(t)
             let dur = AppState.shared.duration
             self?.progressBar.progress = dur > 0 ? t / dur : 0
         }.store(in: &cancellables)
 
-        state.$duration.receive(on: RunLoop.main).sink { [weak self] d in
+        state.$duration.sinkOnMain { [weak self] d in
             self?.durationLabel.stringValue = Self.fmt(d)
         }.store(in: &cancellables)
 
-        state.$isPlaying.receive(on: RunLoop.main).sink { [weak self] p in
+        state.$isPlaying.sinkOnMain { [weak self] p in
             self?.playBtn.title = p ? "⏸" : "▶"
         }.store(in: &cancellables)
 
-        state.$shuffle.receive(on: RunLoop.main).sink { [weak self] s in
+        state.$shuffle.sinkOnMain { [weak self] s in
             self?.shfBtn.contentTintColor = s ? NSColor(hex: 0x4a9eff) : NSColor(hex: 0x444444)
         }.store(in: &cancellables)
 
-        state.$repeatMode.receive(on: RunLoop.main).sink { [weak self] r in
+        state.$repeatMode.sinkOnMain { [weak self] r in
             self?.rptBtn.contentTintColor = r ? NSColor(hex: 0x4a9eff) : NSColor(hex: 0x444444)
         }.store(in: &cancellables)
 
-        state.$volume.receive(on: RunLoop.main).sink { [weak self] v in
+        state.$volume.sinkOnMain { [weak self] v in
             self?.volBar.progress = Double(v)
             self?.volPctLabel.stringValue = "\(Int(v * 100))%"
         }.store(in: &cancellables)
 
-        state.$waveformData.receive(on: RunLoop.main).sink { [weak self] w in
+        state.$waveformData.sinkOnMain { [weak self] w in
             self?.progressBar.waveformData = w
         }.store(in: &cancellables)
     }

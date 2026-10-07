@@ -1,0 +1,417 @@
+{
+  "checks" : [
+    {
+      "detail" : "\/private\/tmp\/ultralight-ui-fixed-baseline\/runs\/original-b960fa0-20261006-212025-655086\/data\/ultralight",
+      "name" : "config isolated",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "fresh config empty",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "audio silent before UI",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "initial header cleared",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "initial table count",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "Combine header title",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "Combine header artist",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "Combine header format",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "Combine time and duration",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "Combine volume label",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "Combine play button",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "Combine seek progress and waveform",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "Combine volume bar",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "Combine all EQ bands",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "Combine preamp label",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "Combine table tracks",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "filter AURORA",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "filter row title AURORA",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "filter orchard",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "filter row title orchard",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "filter lost signals",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "filter row title lost signals",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "filter no matching track",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "filter clear",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "filter row title clear",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "button target\/action wired: ⤮",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "shuffle action on",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "button target\/action wired: ⤮",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "shuffle action off",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "button target\/action wired: ↻",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "repeat action on",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "button target\/action wired: ↻",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "repeat action off",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "button target\/action wired: EQ",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "EQ toggle hidden",
+      "pass" : true
+    },
+    {
+      "detail" : "1800x1200",
+      "name" : "snapshot eq-hidden",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "button target\/action wired: EQ",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "EQ toggle shown",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "button target\/action wired: AUTO",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "EQ AUTO bypass on",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "button target\/action wired: AUTO",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "EQ AUTO bypass off",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "button target\/action wired: SAVE",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "EQ SAVE isolated persistence",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "button target\/action wired: RST",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "EQ RST flat model and sliders",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "default-900x600: content size",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "default-900x600: header layout",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "default-900x600: playback layout",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "default-900x600: EQ and library align",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "default-900x600: positive library area",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "default-900x600: major frames contained",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "default-900x600: playback button frames",
+      "pass" : true
+    },
+    {
+      "detail" : "1800x1200",
+      "name" : "snapshot default-900x600",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "compact-600x400: content size",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "compact-600x400: header layout",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "compact-600x400: playback layout",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "compact-600x400: EQ and library align",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "compact-600x400: positive library area",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "compact-600x400: major frames contained",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "compact-600x400: playback button frames",
+      "pass" : true
+    },
+    {
+      "detail" : "1200x800",
+      "name" : "snapshot compact-600x400",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "fallback filename title",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "empty artist hidden",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "paused symbol",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "nil track resets header",
+      "pass" : true
+    },
+    {
+      "detail" : "",
+      "name" : "audio silent after UI",
+      "pass" : true
+    }
+  ],
+  "failed" : 0,
+  "layouts" : [
+    {
+      "content" : {
+        "height" : 600,
+        "width" : 900,
+        "x" : 0,
+        "y" : 0
+      },
+      "eq" : {
+        "height" : 454,
+        "width" : 230,
+        "x" : 670,
+        "y" : 96
+      },
+      "header" : {
+        "height" : 50,
+        "width" : 900,
+        "x" : 0,
+        "y" : 550
+      },
+      "name" : "default-900x600",
+      "playback" : {
+        "height" : 96,
+        "width" : 900,
+        "x" : 0,
+        "y" : 0
+      },
+      "tracks" : {
+        "height" : 454,
+        "width" : 670,
+        "x" : 0,
+        "y" : 96
+      }
+    },
+    {
+      "content" : {
+        "height" : 400,
+        "width" : 600,
+        "x" : 0,
+        "y" : 0
+      },
+      "eq" : {
+        "height" : 254,
+        "width" : 230,
+        "x" : 370,
+        "y" : 96
+      },
+      "header" : {
+        "height" : 50,
+        "width" : 600,
+        "x" : 0,
+        "y" : 350
+      },
+      "name" : "compact-600x400",
+      "playback" : {
+        "height" : 96,
+        "width" : 600,
+        "x" : 0,
+        "y" : 0
+      },
+      "tracks" : {
+        "height" : 254,
+        "width" : 370,
+        "x" : 0,
+        "y" : 96
+      }
+    }
+  ],
+  "observations" : [
+    {
+      "detail" : "Hiding EQ leaves its fixed 230-point width reserved; the library does not expand.",
+      "libraryWidth" : 670,
+      "name" : "EQ hiding reserves panel width"
+    }
+  ],
+  "passed" : 67,
+  "scope" : "Actual AppKit views, Combine bindings, target\/action wiring, filtering, layout, and hidden-window bitmap rendering. Synthetic state only; playback was never started. ConfigStore redirected to isolated temporary storage."
+}

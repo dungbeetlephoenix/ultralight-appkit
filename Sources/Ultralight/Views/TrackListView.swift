@@ -84,12 +84,10 @@ final class TrackListView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     private func bind() {
         let state = AppState.shared
         Publishers.CombineLatest3(state.$tracks, state.$searchQuery, state.$currentTrack)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _, _, _ in self?.reload() }
+            .sinkOnMain { [weak self] _, _, _ in self?.reload() }
             .store(in: &cancellables)
 
-        state.$isPlaying.receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.tableView.reloadData() }
+        state.$isPlaying.sinkOnMain { [weak self] _ in self?.tableView.reloadData() }
             .store(in: &cancellables)
     }
 
@@ -114,7 +112,7 @@ final class TrackListView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let track = displayedTracks[row]
         let state = AppState.shared
-        let isActive = track.id == state.currentTrack?.id
+        let isActive = track.path == state.currentTrack?.path
         let isPlaying = isActive && state.isPlaying
 
         let cell = TrackCellView()

@@ -1,6 +1,6 @@
 import Foundation
 
-struct EQBand: Codable, Hashable {
+struct EQBand: Codable {
     var frequency: Float    // Hz
     var gain: Float         // dB, -12 to +12
     var bandwidth: Float    // octaves
@@ -17,7 +17,7 @@ struct EQBand: Codable, Hashable {
     ]
 }
 
-struct EQProfile: Codable, Hashable {
+struct EQProfile: Codable {
     var bands: [EQBand]
     var preamp: Float       // dB
 

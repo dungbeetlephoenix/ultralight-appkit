@@ -1,6 +1,6 @@
 import Foundation
 
-struct Track: Identifiable, Codable, Hashable {
+struct Track {
     let id: String          // file content hash
     var path: String
     var title: String

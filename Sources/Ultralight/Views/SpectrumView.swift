@@ -11,8 +11,7 @@ final class SpectrumView: NSView {
         layer?.backgroundColor = NSColor(hex: 0x0a0a0a).cgColor
 
         cancellable = AppState.shared.$spectrumData
-            .receive(on: RunLoop.main)
-            .sink { [weak self] d in
+            .sinkOnMain { [weak self] d in
                 self?.data = d
                 self?.needsDisplay = true
             }

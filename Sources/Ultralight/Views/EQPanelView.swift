@@ -120,7 +120,7 @@ final class EQPanelView: NSView {
     private func bind() {
         let state = AppState.shared
 
-        state.$eqProfile.receive(on: RunLoop.main).sink { [weak self] profile in
+        state.$eqProfile.sinkOnMain { [weak self] profile in
             guard let self else { return }
             for (i, slider) in sliders.enumerated() where i < profile.bands.count {
                 slider.value = profile.bands[i].gain
@@ -130,8 +130,7 @@ final class EQPanelView: NSView {
         }.store(in: &cancellables)
 
         Publishers.CombineLatest(state.$currentTrack, state.$eqProfile)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] track, _ in self?.updateAnalysis(track: track) }
+            .sinkOnMain { [weak self] track, _ in self?.updateAnalysis(track: track) }
             .store(in: &cancellables)
     }
 

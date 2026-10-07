@@ -1,0 +1,48 @@
+{
+  "source_commit": "b960fa082de679fd6ced136ae61efde60632ad8c",
+  "source": "Original source archived from git, never generated from candidate",
+  "harness_sha256": "7126935ad8f5957ddd4305ffcd996004cc58b4c6ba0612832319c436e9992b9b",
+  "render_scale": 2,
+  "original_run": "/tmp/ultralight-ui-fixed-baseline/runs/original-b960fa0-20261006-212025-655086",
+  "candidate_comparison_run": "/tmp/ultralight-ui-fixed-baseline/runs/candidate-20261006-212025-654801",
+  "comparison": "All three PNG files byte-identical; all 67 assertion outcomes, layouts and observations identical.",
+  "baseline_source_hashes": {
+    "Sources/Ultralight/App/AppDelegate.swift": "ef22be03c485493435d0fb61d25bbea24abd6d14f753e73233390d8f853b61ee",
+    "Sources/Ultralight/App/AppState.swift": "aefa5056830a54ad97df7fad4a2ce1ba1b7c45751878350a71fb34a83d60eeed",
+    "Sources/Ultralight/App/main.swift": "9ea56f9610f0a4fce6f18754fd3ee7af297433319472c9305c40e9683a8d75f2",
+    "Sources/Ultralight/Audio/AudioAnalyzer.swift": "7e3c76c19856484f92d0e305ba6503629da3a0de5f8ae817f379e06ecc2d7b1d",
+    "Sources/Ultralight/Audio/AudioEngine.swift": "8f970e70a0795227e05edb84e70dfba50d75279d7d5022501b85cde751f5686d",
+    "Sources/Ultralight/Audio/FileHasher.swift": "92f625142041efe405bbea41003ab8c322e20ef59d7f5ba1d6cb8498ddc80bac",
+    "Sources/Ultralight/Models/AnalysisResult.swift": "1d56941d645e81e6140eb64fd31e0d75eea12d23a2aae10853f46e012f245253",
+    "Sources/Ultralight/Models/EQProfile.swift": "fab4a9e543ffcc6823421f8b066e25577c9dc9f23d2bc53082b73d1b57f2266e",
+    "Sources/Ultralight/Models/Track.swift": "912e05b923a44c8ae20ab94a5c36386e0fc65a67671c2a8e43df5305dbdea9f4",
+    "Sources/Ultralight/Scanner/FolderScanner.swift": "db64c149374c43324c75d4ca172ee9e400caded594d4c3e6542572b71dddee7d",
+    "Sources/Ultralight/Storage/AnalysisStore.swift": "9b72c51581c1531d593d1e9520d00bd2c658b05738a847b56354df351d0d85c1",
+    "Sources/Ultralight/Storage/ConfigStore.swift": "4aa1646a302d9062ab75253bde23696d14b486d7dcd714a75ee8540d8648e3f9",
+    "Sources/Ultralight/Storage/EQStore.swift": "2ece5028a0de99f428638e35b256887315df19b66de847fcab79190394fb7613",
+    "Sources/Ultralight/System/MediaKeyHandler.swift": "fc2eeeeb9c10557e396993071bafd96ebcced70c38b9ff35731e984cd54352e9",
+    "Sources/Ultralight/System/MenuBarManager.swift": "7ba84dbb33cee902718820447e32f8d8e34f89573fa03e3e13c79645302dab15",
+    "Sources/Ultralight/Views/EQPanelView.swift": "beef9004fcb3601ecb45a221e1a1f3384de93a1bf37015fbee84edd401ae5d0f",
+    "Sources/Ultralight/Views/HeaderView.swift": "98aa9bf3adc2fcc54b43ac68998530eac8f6638ccf624e7ca863b6f7fbaab9dd",
+    "Sources/Ultralight/Views/MainWindow.swift": "ec1456f5df9572a819b2a00045884c4a1b3da9305529d730e90732c90683342f",
+    "Sources/Ultralight/Views/PlaybackBarView.swift": "f34c9d2c4f2a17cfa14a20ede06ed54a1335a022adc26de82bb9bcc636bad935",
+    "Sources/Ultralight/Views/SettingsWindow.swift": "65884c06bf65f5007a59ac8dd1973696d5d3efda38882d9b4270d2366e863446",
+    "Sources/Ultralight/Views/SpectrumView.swift": "695e4e0cd94b5ba991e8ca6cc7bda0141e3c1e93455a56370e4897c76017dcc3",
+    "Sources/Ultralight/Views/TrackListView.swift": "af9b2b18ffd8e45a7229e46a4276e178de539abec92bb6537d051e70a958c9bc"
+  },
+  "flags": [
+    "-Osize",
+    "-whole-module-optimization",
+    "-Xlinker",
+    "-dead_strip",
+    "-Xlinker",
+    "-x",
+    "-gnone",
+    "-Xfrontend",
+    "-disable-reflection-names"
+  ],
+  "binary_processing": [
+    "strip -rSTx -N",
+    "codesign --force --sign -"
+  ]
+}

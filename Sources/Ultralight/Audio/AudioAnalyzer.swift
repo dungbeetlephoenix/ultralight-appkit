@@ -9,96 +9,55 @@ enum AudioAnalyzer {
 
         let format = file.processingFormat
         let sampleRate = format.sampleRate
-        // Read up to 2 seconds
-        let framesToRead = AVAudioFrameCount(min(Double(file.length), sampleRate * 2))
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: framesToRead) else { return nil }
-
-        do {
-            try file.read(into: buffer, frameCount: framesToRead)
-        } catch { return nil }
-
-        guard let channelData = buffer.floatChannelData?[0] else { return nil }
-        let frameCount = Int(buffer.frameLength)
-        guard frameCount >= 1024 else { return nil }
-
-        // FFT
         let fftSize = 4096
-        let log2n = vDSP_Length(log2(Float(fftSize)))
-        guard let fftSetup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2)) else { return nil }
-        defer { vDSP_destroy_fftsetup(fftSetup) }
+        let framesToRead = AVAudioFrameCount(min(Double(file.length), sampleRate * 2))
+        guard framesToRead >= fftSize,
+              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: framesToRead) else { return nil }
+        do { try file.read(into: buffer, frameCount: framesToRead) } catch { return nil }
+        guard let channels = buffer.floatChannelData else { return nil }
+        let frameCount = Int(buffer.frameLength)
+        let channelCount = Int(format.channelCount)
+        guard frameCount >= fftSize, channelCount > 0 else { return nil }
 
+        guard let spectrum = PowerSpectrum(log2Size: 12) else { return nil }
         let halfSize = fftSize / 2
-        var avgMagnitudes = [Float](repeating: 0, count: halfSize)
-        var windowCount = 0
+        var energies = [Float](repeating: 0, count: halfSize + 1)
+        var peak: Float = 0
+        var meanSquare: Float = 0
 
-        // Process in overlapping windows
-        var offset = 0
-        while offset + fftSize <= frameCount {
-            var windowed = [Float](repeating: 0, count: fftSize)
-            var window = [Float](repeating: 0, count: fftSize)
-            vDSP_hann_window(&window, vDSP_Length(fftSize), Int32(vDSP_HANN_NORM))
-            vDSP_vmul(channelData + offset, 1, window, 1, &windowed, 1, vDSP_Length(fftSize))
+        // Sum channel power separately so stereo phase cancellation cannot erase the spectrum.
+        for channel in 0..<channelCount {
+            let data = channels[channel]
+            var channelPeak: Float = 0
+            var channelMeanSquare: Float = 0
+            vDSP_maxmgv(data, 1, &channelPeak, vDSP_Length(frameCount))
+            vDSP_measqv(data, 1, &channelMeanSquare, vDSP_Length(frameCount))
+            peak = max(peak, channelPeak)
+            meanSquare += channelMeanSquare
 
-            var realPart = [Float](repeating: 0, count: halfSize)
-            var imagPart = [Float](repeating: 0, count: halfSize)
-            var magnitudes = [Float](repeating: 0, count: halfSize)
-
-            realPart.withUnsafeMutableBufferPointer { realBuf in
-                imagPart.withUnsafeMutableBufferPointer { imagBuf in
-                    var split = DSPSplitComplex(realp: realBuf.baseAddress!, imagp: imagBuf.baseAddress!)
-                    windowed.withUnsafeBufferPointer { wPtr in
-                        wPtr.baseAddress!.withMemoryRebound(to: DSPComplex.self, capacity: halfSize) { cPtr in
-                            vDSP_ctoz(cPtr, 2, &split, 1, vDSP_Length(halfSize))
-                        }
-                    }
-                    vDSP_fft_zrip(fftSetup, &split, 1, log2n, FFTDirection(FFT_FORWARD))
-                    vDSP_zvmags(&split, 1, &magnitudes, 1, vDSP_Length(halfSize))
-                }
+            for offset in stride(from: 0, through: frameCount - fftSize, by: halfSize) {
+                if Task.isCancelled { return nil }
+                spectrum.add(data + offset, to: &energies)
             }
-
-            // Accumulate
-            vDSP_vadd(avgMagnitudes, 1, magnitudes, 1, &avgMagnitudes, 1, vDSP_Length(halfSize))
-            windowCount += 1
-            offset += fftSize / 2 // 50% overlap
         }
 
-        guard windowCount > 0 else { return nil }
-
-        // Average
-        var divisor = Float(windowCount)
-        vDSP_vsdiv(avgMagnitudes, 1, &divisor, &avgMagnitudes, 1, vDSP_Length(halfSize))
-
-        // Calculate energy in bands
         let binHz = Float(sampleRate) / Float(fftSize)
-        let bassEnd = Int(250 / binHz)
-        let midEnd = Int(4000 / binHz)
-
-        let bassEnergy = avgMagnitudes[0..<min(bassEnd, halfSize)].reduce(0, +)
-        let midEnergy = avgMagnitudes[min(bassEnd, halfSize)..<min(midEnd, halfSize)].reduce(0, +)
-        let trebleEnergy = avgMagnitudes[min(midEnd, halfSize)..<halfSize].reduce(0, +)
+        let bassEnd = min(Int(250 / binHz), energies.count)
+        let midEnd = min(Int(4000 / binHz), energies.count)
+        let bassEnergy = energies[..<bassEnd].reduce(0, +)
+        let midEnergy = energies[bassEnd..<midEnd].reduce(0, +)
+        let trebleEnergy = energies[midEnd...].reduce(0, +)
         let totalEnergy = bassEnergy + midEnergy + trebleEnergy
-        guard totalEnergy > 0 else { return nil }
+        guard totalEnergy > 0, totalEnergy.isFinite else { return nil }
 
         let normBass = bassEnergy / totalEnergy
         let normMid = midEnergy / totalEnergy
         let normTreble = trebleEnergy / totalEnergy
-
-        // Spectral centroid
         var centroid: Float = 0
-        for i in 0..<halfSize {
-            centroid += Float(i) * binHz * avgMagnitudes[i]
-        }
+        for i in energies.indices { centroid += Float(i) * binHz * energies[i] }
         centroid /= totalEnergy
-
-        // Peak level (dB)
-        var peak: Float = 0
-        vDSP_maxv(channelData, 1, &peak, vDSP_Length(frameCount))
         let peakDB = 20 * log10(max(peak, 1e-10))
-
-        // Dynamic range (rough estimate from RMS vs peak)
-        var rmsSquared: Float = 0
-        vDSP_measqv(channelData, 1, &rmsSquared, vDSP_Length(frameCount))
-        let rms = sqrt(rmsSquared)
+        let rms = sqrt(meanSquare / Float(channelCount))
         let dynamicRange = 20 * log10(max(peak / max(rms, 1e-10), 1e-10))
 
         // Detection flags (matching Electron app's analysis)
@@ -133,32 +92,37 @@ enum AudioAnalyzer {
     }
 
     static func computeWaveform(path: String, resolution: Int = 200) async -> [Float]? {
-        guard let file = try? AVAudioFile(forReading: URL(fileURLWithPath: path)) else { return nil }
+        guard resolution > 0,
+              let file = try? AVAudioFile(forReading: URL(fileURLWithPath: path)),
+              file.length > 0 else { return nil }
         let totalFrames = Int(file.length)
-        let framesPerBin = totalFrames / resolution
-        guard framesPerBin > 0 else { return nil }
+        let binCount = min(resolution, totalFrames)
+        let framesPerBin = totalFrames / binCount
+        let extraFrames = totalFrames % binCount
+        let capacity = AVAudioFrameCount(min(16384, framesPerBin + 1))
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: capacity) else { return nil }
+        var peaks = [Float](repeating: 0, count: binCount)
 
-        let format = file.processingFormat
-        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(framesPerBin)) else { return nil }
-
-        var peaks = [Float](repeating: 0, count: resolution)
-
-        for i in 0..<resolution {
-            file.framePosition = AVAudioFramePosition(i * framesPerBin)
-            let toRead = AVAudioFrameCount(min(framesPerBin, totalFrames - i * framesPerBin))
-            guard toRead > 0 else { break }
-            do { try file.read(into: buffer, frameCount: toRead) } catch { continue }
-            guard let data = buffer.floatChannelData?[0] else { continue }
-            var peak: Float = 0
-            vDSP_maxmgv(data, 1, &peak, vDSP_Length(buffer.frameLength))
-            peaks[i] = peak
+        // Read sequentially in bounded chunks, including every channel and the final frames.
+        for i in peaks.indices {
+            var remaining = framesPerBin + (i < extraFrames ? 1 : 0)
+            while remaining > 0 {
+                if Task.isCancelled { return nil }
+                do { try file.read(into: buffer, frameCount: AVAudioFrameCount(min(remaining, Int(capacity)))) }
+                catch { return nil }
+                guard buffer.frameLength > 0, let channels = buffer.floatChannelData else { return nil }
+                for channel in 0..<Int(buffer.format.channelCount) {
+                    var peak: Float = 0
+                    vDSP_maxmgv(channels[channel], 1, &peak, vDSP_Length(buffer.frameLength))
+                    peaks[i] = max(peaks[i], peak)
+                }
+                remaining -= Int(buffer.frameLength)
+            }
         }
-
         var maxPeak: Float = 0
-        vDSP_maxv(peaks, 1, &maxPeak, vDSP_Length(resolution))
+        vDSP_maxv(peaks, 1, &maxPeak, vDSP_Length(binCount))
         if maxPeak > 0 {
-            var div = maxPeak
-            vDSP_vsdiv(peaks, 1, &div, &peaks, 1, vDSP_Length(resolution))
+            vDSP_vsdiv(peaks, 1, &maxPeak, &peaks, 1, vDSP_Length(binCount))
         }
         return peaks
     }

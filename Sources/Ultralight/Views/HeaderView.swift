@@ -94,7 +94,7 @@ final class HeaderView: NSView {
 
     private func bind() {
         let state = AppState.shared
-        state.$currentTrack.receive(on: RunLoop.main).sink { [weak self] track in
+        state.$currentTrack.sinkOnMain { [weak self] track in
             guard let self else { return }
             if let t = track {
                 titleLabel.stringValue = t.displayTitle

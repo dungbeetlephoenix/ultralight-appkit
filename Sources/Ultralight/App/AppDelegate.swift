@@ -9,6 +9,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mainWindow = MainWindow()
         mainWindow.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        AppState.shared.onPlaybackError = { [weak self] error in
+            guard let window = self?.mainWindow else { return }
+            NSAlert(error: error).beginSheetModal(for: window)
+        }
 
         menuBarManager.setup(state: AppState.shared)
         mediaKeyHandler.setup(state: AppState.shared)

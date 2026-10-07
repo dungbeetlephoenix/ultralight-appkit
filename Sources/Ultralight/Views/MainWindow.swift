@@ -84,7 +84,7 @@ final class MainWindow: NSWindow {
 
     private func setupBindings() {
         let state = AppState.shared
-        state.$showEQ.receive(on: RunLoop.main).sink { [weak self] show in
+        state.$showEQ.sinkOnMain { [weak self] show in
             self?.eqPanelView.isHidden = !show
         }.store(in: &cancellables)
     }

@@ -1,6 +1,6 @@
 import Foundation
 
-struct AnalysisResult: Codable, Hashable {
+struct AnalysisResult: Codable {
     var bassEnergy: Float       // 0-1 normalized
     var midEnergy: Float
     var trebleEnergy: Float

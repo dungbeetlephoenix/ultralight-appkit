@@ -2,82 +2,47 @@
 
 ![Ultralight](screenshot.png)
 
-A music player in 285 KB.
+A 286.6 KB native macOS music player (289.2 KB signed app; 122.2 KB download in the verified Apple-silicon build). AppKit, AVFoundation, Accelerate, and Combine; no third-party dependencies or bundled runtime.
 
-I got tired of every audio app on my Mac being enormous. Spotify is 150 MB. The Electron version of this same player was 104 MB. I wanted to see how small I could go while keeping the features I actually use — EQ, spectrum, auto-analysis.
+- Local music library with recursive folder scanning and metadata.
+- Eight-band EQ and preamp, with saved per-track settings.
+- Automatic spectral analysis and suggested EQ.
+- Gapless scheduling between tracks with matching decoded sample rates and channel counts; normal next-track playback otherwise.
+- Stereo-aware waveform seeking and a 32-band live spectrum.
+- Shuffle, repeat, media-key commands, menu-bar controls, and output-device selection.
 
-This is pure AppKit. No SwiftUI, no Electron, no third-party dependencies. One `swift build`, one binary, done. It links against frameworks that already ship with macOS and nothing else.
-
-The DMG is 134 KB. Smaller than most album art.
-
-## What it does
-
-- Plays FLAC, MP3, WAV, AAC, M4A, OGG, OPUS, AIFF, and anything else AVFoundation can decode
-- 8-band parametric EQ that persists per track
-- Analyzes each track on first play — computes spectral energy, crest factor, centroid — and generates a corrective EQ curve automatically
-- Tags tracks as bass-heavy, bright, muddy, thin, compressed, dynamic, or clipping
-- Real-time 32-band FFT spectrum visualizer
-- Media key support, menu bar icon, drag-and-drop import
-- Scans folders recursively, reads metadata from embedded tags
-
-## How small
-
-```
-Ultralight (this)        285 KB binary     134 KB dmg
-μTorrent 1.6 (2006)     ~290 KB binary
-foobar2000                                 4.6 MB installer
-Spotify                                   ~150 MB
-```
-
-I started with a SwiftUI version that came out to 400 KB. Rewriting the views as plain NSView subclasses with manual Auto Layout and custom `draw()` calls shaved off 115 KB. The `-Osize` compiler flag and aggressive stripping got it the rest of the way.
-
-The hot path is all Apple frameworks — `vDSP` for FFT, `AVAudioEngine` for the audio graph — so optimizing for size over speed costs nothing audible.
+Audio decoding is provided by macOS. A filename extension alone does not guarantee that its codec is supported.
 
 ## Build
 
-macOS 14+, Swift 5.9+.
+Requires macOS and the Xcode command-line tools. The verified build uses Apple Swift 6.3.3 on Apple silicon and targets macOS 14 or later.
 
 ```sh
-swift build -c release
-strip -rSTx .build/release/Ultralight
+# Development, with normal debug information:
+swift build
+
+# Verify, compile, strip, sign locally, package, and measure:
+python3 Scripts/release.py --dmg UDZO
 ```
 
-To make an app bundle:
+The release is written to `artifacts/release/Ultralight.app`, with a DMG and a `size.json` containing exact sizes, source hashes, build flags, and file hashes. It is ad-hoc signed for local use, not Developer ID signed or notarized. Nothing is installed automatically.
+
+The release script compiles all production source files in one compiler invocation. This permits whole-program LLVM optimization and avoids the additional code produced by split object generation. SwiftPM release builds also enable single-module LLVM emission; use `swift build -c release -debug-info-format none` when comparing them. Do not substitute `-num-threads 0`: clean SwiftPM builds can fail with missing object files.
+
+## Quality and size gates
 
 ```sh
-mkdir -p Ultralight.app/Contents/MacOS
-cp .build/release/Ultralight Ultralight.app/Contents/MacOS/
+python3 Scripts/check.py
 ```
 
-You'll need an `Info.plist` in `Ultralight.app/Contents/` — just set `CFBundleExecutable` to `Ultralight`.
+The release runs every gate before building and verifies that the source has not changed afterward:
 
-## How it works
+- Audio analysis, spectra, waveform edge cases, persistence, and legacy file hashes.
+- Native UI bindings/actions and strict comparisons to three renders of the starting version. Rendering uses a fixed 2× scale.
+- Real audio-engine transport and queued transitions at zero output volume.
+- Offline sample-exact continuity, including complete EQ/preamp bypass.
+- Delayed asynchronous completions and queue/state consistency.
 
-Audio runs through an `AVAudioEngine` graph: `AVAudioPlayerNode` → `AVAudioUnitEQ` (8 parametric bands) → `AVAudioMixerNode` → output. A tap on the mixer feeds 1024-sample buffers into a Hann-windowed FFT for the spectrum display.
+Test fixtures and saved settings are isolated from your library. Test code and images are not shipped in the app. The verified Apple-silicon release budgets are 290,000 bytes for the executable, 294,000 bytes for the signed app payload, and 130,000 bytes for the DMG. A failed gate or exceeded budget stops the release.
 
-State management is Combine — `@Published` properties on a central `AppState` singleton, views subscribe with `.sink`. No SwiftUI means no view diffing overhead, just targeted UI updates when values change.
-
-Track identification uses a partial MD5 hash (first 64 KB + last 64 KB + file size) so EQ profiles follow tracks even if they move on disk. The hash format is compatible with the earlier Electron version's database.
-
-The offline analyzer runs a longer FFT pass over the full file, computes energy distribution across bass/mid/treble bands, measures dynamic range via crest factor, and derives a suggested EQ curve that gets applied automatically if no saved profile exists.
-
-## Structure
-
-```
-Sources/Ultralight/
-├── App/          main.swift, AppDelegate, AppState
-├── Audio/        AudioEngine, AudioAnalyzer, FileHasher
-├── Models/       Track, EQProfile, AnalysisResult
-├── Scanner/      FolderScanner
-├── Storage/      ConfigStore, EQStore, AnalysisStore
-├── System/       MenuBarManager, MediaKeyHandler
-└── Views/        MainWindow, HeaderView, TrackListView,
-                  PlaybackBarView, SpectrumView,
-                  EQPanelView, SettingsWindow
-```
-
-24 files, ~2200 lines.
-
-## License
-
-MIT
+See [HILLCLIMB.md](HILLCLIMB.md) for measured results, retained optimizations, rejected experiments, and validation limits.

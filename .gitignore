@@ -3,3 +3,7 @@
 ultralight.app/
 *.dmg
 .DS_Store
+artifacts/
+Tests/runs/
+Tests/**/runs/
+**/__pycache__/

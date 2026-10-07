@@ -9,10 +9,17 @@ let package = Package(
             name: "Ultralight",
             path: "Sources/Ultralight",
             swiftSettings: [
-                .unsafeFlags(["-Osize", "-whole-module-optimization"])
+                // Keep type metadata: Combine's ObservableObject needs it.
+                // Property names and compiler debug information are unnecessary
+                // in a stripped release; debug builds remain fully inspectable.
+                .unsafeFlags(["-Osize", "-whole-module-optimization", "-gnone",
+                              "-Xfrontend", "-enable-single-module-llvm-emission",
+                              "-Xfrontend", "-disable-reflection-names"],
+                             .when(configuration: .release))
             ],
             linkerSettings: [
-                .unsafeFlags(["-Xlinker", "-dead_strip", "-Xlinker", "-x"])
+                .unsafeFlags(["-Xlinker", "-dead_strip", "-Xlinker", "-x"],
+                             .when(configuration: .release))
             ]
         )
     ]
