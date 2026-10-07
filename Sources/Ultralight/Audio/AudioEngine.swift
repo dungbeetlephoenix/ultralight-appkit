@@ -307,10 +307,12 @@ final class AudioEngine {
                 mScope: kAudioObjectPropertyScopeGlobal,
                 mElement: kAudioObjectPropertyElementMain
             )
-            var name: CFString = "" as CFString
-            var nameSize = UInt32(MemoryLayout<CFString>.size)
-            AudioObjectGetPropertyData(id, &nameAddr, 0, nil, &nameSize, &name)
-            return OutputDevice(id: id, name: name as String)
+            // This property returns an owned CFString; consume its +1 retain exactly once.
+            var name: Unmanaged<CFString>?
+            var nameSize = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+            guard AudioObjectGetPropertyData(id, &nameAddr, 0, nil, &nameSize, &name) == noErr,
+                  let name else { return nil }
+            return OutputDevice(id: id, name: name.takeRetainedValue() as String)
         }
     }
 

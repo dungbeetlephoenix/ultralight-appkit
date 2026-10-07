@@ -40,41 +40,38 @@ final class MainWindow: NSWindow {
         container.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(container)
         NSLayoutConstraint.activate([
-            container.topAnchor.constraint(equalTo: content.topAnchor),
-            container.leadingAnchor.constraint(equalTo: content.leadingAnchor),
-            container.trailingAnchor.constraint(equalTo: content.trailingAnchor),
-            container.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            uiConstraint(container, .top, content, .top, .equal, 0),
+            uiConstraint(container, .leading, content, .leading, .equal, 0),
+            uiConstraint(container, .trailing, content, .trailing, .equal, 0),
+            uiConstraint(container, .bottom, content, .bottom, .equal, 0),
         ])
 
-        for v in [headerView, trackListView, eqPanelView, playbackBar] as [NSView] {
-            v.translatesAutoresizingMaskIntoConstraints = false
-            container.addSubview(v)
-        }
+        uiInstall(container, [headerView, trackListView, eqPanelView, playbackBar] as [NSView])
 
         NSLayoutConstraint.activate([
             // Header at top
-            headerView.topAnchor.constraint(equalTo: container.topAnchor),
-            headerView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            headerView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            headerView.heightAnchor.constraint(equalToConstant: 50),
+            uiConstraint(headerView, .top, container, .top, .equal, 0),
+            uiConstraint(headerView, .leading, container, .leading, .equal, 0),
+            uiConstraint(headerView, .trailing, container, .trailing, .equal, 0),
+            uiConstraint(headerView, .height, nil, .notAnAttribute, .equal, 50),
 
             // Playback bar at bottom
-            playbackBar.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-            playbackBar.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            playbackBar.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            playbackBar.heightAnchor.constraint(equalToConstant: 96),
+            uiConstraint(playbackBar, .bottom, container, .bottom, .equal, 0),
+            uiConstraint(playbackBar, .leading, container, .leading, .equal, 0),
+            uiConstraint(playbackBar, .trailing, container, .trailing, .equal, 0),
+            uiConstraint(playbackBar, .height, nil, .notAnAttribute, .equal, 96),
 
             // EQ panel on right
-            eqPanelView.topAnchor.constraint(equalTo: headerView.bottomAnchor),
-            eqPanelView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            eqPanelView.bottomAnchor.constraint(equalTo: playbackBar.topAnchor),
-            eqPanelView.widthAnchor.constraint(equalToConstant: 230),
+            uiConstraint(eqPanelView, .top, headerView, .bottom, .equal, 0),
+            uiConstraint(eqPanelView, .trailing, container, .trailing, .equal, 0),
+            uiConstraint(eqPanelView, .bottom, playbackBar, .top, .equal, 0),
+            uiConstraint(eqPanelView, .width, nil, .notAnAttribute, .equal, 230),
 
             // Track list fills remaining space
-            trackListView.topAnchor.constraint(equalTo: headerView.bottomAnchor),
-            trackListView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            trackListView.trailingAnchor.constraint(equalTo: eqPanelView.leadingAnchor),
-            trackListView.bottomAnchor.constraint(equalTo: playbackBar.topAnchor),
+            uiConstraint(trackListView, .top, headerView, .bottom, .equal, 0),
+            uiConstraint(trackListView, .leading, container, .leading, .equal, 0),
+            uiConstraint(trackListView, .trailing, eqPanelView, .leading, .equal, 0),
+            uiConstraint(trackListView, .bottom, playbackBar, .top, .equal, 0),
         ])
     }
 
@@ -143,7 +140,7 @@ final class DropView: NSView {
 
 // NSColor hex convenience
 extension NSColor {
-    convenience init(hex: UInt, alpha: CGFloat = 1.0) {
+    @inline(never) convenience init(hex: UInt, alpha: CGFloat = 1.0) {
         self.init(
             red: CGFloat((hex >> 16) & 0xFF) / 255,
             green: CGFloat((hex >> 8) & 0xFF) / 255,

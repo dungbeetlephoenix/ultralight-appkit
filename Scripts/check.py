@@ -17,6 +17,8 @@ def main():
         ('playback', ['Tests/playback/run.py', str(ROOT), '--label', 'release', '--', *FLAGS]),
         ('continuity', ['Tests/playback/continuity.py', str(ROOT), '--', *FLAGS]),
         ('state', ['Tests/state/run.py', str(ROOT), '--', *FLAGS]),
+        ('binding', ['Tests/binding/run.py', str(ROOT), '--', *FLAGS]),
+        ('allocation', ['Tests/allocation/run.py', str(ROOT)]),
     ]
     statuses = {}
     env = dict(os.environ, ULTRALIGHT_AUDIT_STRIP='1')

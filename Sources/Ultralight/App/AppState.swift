@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 
+// AppKit controls and asynchronous completion handlers mutate state on the main thread.
 final class AppState: ObservableObject {
     static let shared = AppState()
 
@@ -12,12 +13,12 @@ final class AppState: ObservableObject {
     @Published var isPlaying: Bool = false
     @Published var currentTime: Double = 0
     @Published var duration: Double = 0
-    @Published var volume: Float = 0.8
-    @Published var shuffle: Bool = false
-    @Published var repeatMode: Bool = false
+    @Published var volume: Float = 0.8 { didSet { audioEngine.setVolume(volume) } }
+    @Published var shuffle: Bool = false { didSet { if shuffle != oldValue { queueNextTrack() } } }
+    @Published var repeatMode: Bool = false { didSet { if repeatMode != oldValue { queueNextTrack() } } }
 
-    @Published var eqProfile: EQProfile = .flat
-    @Published var eqBypassed: Bool = false
+    @Published var eqProfile: EQProfile = .flat { didSet { audioEngine.applyEQ(eqProfile) } }
+    @Published var eqBypassed: Bool = false { didSet { audioEngine.setEQBypassed(eqBypassed) } }
     @Published var showEQ: Bool = true
 
     @Published var spectrumData: [Float] = Array(repeating: 0, count: 32)
@@ -25,7 +26,6 @@ final class AppState: ObservableObject {
 
     let audioEngine = AudioEngine()
     private var timeTimer: Timer?
-    private var cancellables = Set<AnyCancellable>()
     private var scanTask: Task<Void, Never>?
     private var waveformTask: Task<Void, Never>?
     private var analysisTask: Task<Void, Never>?
@@ -34,7 +34,9 @@ final class AppState: ObservableObject {
 
     init() {
         setupEngine()
-        setupObservers()
+        audioEngine.setVolume(volume)
+        audioEngine.applyEQ(eqProfile)
+        audioEngine.setEQBypassed(eqBypassed)
         loadConfig()
     }
 
@@ -48,13 +50,6 @@ final class AppState: ObservableObject {
         audioEngine.onTrackAdvanced = { [weak self] path in
             self?.handleTrackAdvanced(path: path)
         }
-    }
-
-    private func setupObservers() {
-        $volume.sink { [weak self] v in self?.audioEngine.setVolume(v) }.store(in: &cancellables)
-        $eqProfile.sink { [weak self] p in self?.audioEngine.applyEQ(p) }.store(in: &cancellables)
-        $eqBypassed.sink { [weak self] b in self?.audioEngine.setEQBypassed(b) }.store(in: &cancellables)
-        $shuffle.combineLatest($repeatMode).dropFirst().sinkOnMain { [weak self] _ in self?.queueNextTrack() }.store(in: &cancellables)
     }
 
     private func loadConfig() {
@@ -180,6 +175,10 @@ final class AppState: ObservableObject {
                 self.waveformData = waveform
             }
         }
+    }
+
+    func setPlaying(_ playing: Bool) {
+        if playing != isPlaying { togglePlay() }
     }
 
     func togglePlay() {

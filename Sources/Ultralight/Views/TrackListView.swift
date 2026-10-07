@@ -5,15 +5,14 @@ final class TrackListView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     private let scrollView = NSScrollView()
     private let tableView = NSTableView()
     private let headerBar = NSView()
-    private let countLabel = NSTextField(labelWithString: "0 tracks")
-    private let eqBtn = NSButton(title: "EQ", target: nil, action: nil)
+    private let countLabel = uiLabel("0 tracks")
+    private let eqBtn = uiButton("EQ")
     private var cancellables = Set<AnyCancellable>()
     private var displayedTracks: [Track] = []
 
     override init(frame: NSRect) {
         super.init(frame: frame)
-        wantsLayer = true
-        layer?.backgroundColor = NSColor(hex: 0x0a0a0a).cgColor
+        uiBackground(self, 0x0a0a0a)
         setupHeader()
         setupTable()
         bind()
@@ -22,32 +21,26 @@ final class TrackListView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     required init?(coder: NSCoder) { fatalError() }
 
     private func setupHeader() {
-        headerBar.wantsLayer = true
-        headerBar.layer?.backgroundColor = NSColor(hex: 0x111111).cgColor
+        uiBackground(headerBar, 0x111111)
         headerBar.translatesAutoresizingMaskIntoConstraints = false
         addSubview(headerBar)
 
-        let libLabel = NSTextField(labelWithString: "LIBRARY")
-        libLabel.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .bold)
-        libLabel.textColor = NSColor(hex: 0x4a9eff)
+        let libLabel = uiLabel("LIBRARY")
+        uiStyleLabel(libLabel, 10, .bold, 0x4a9eff)
 
-        countLabel.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .regular)
-        countLabel.textColor = NSColor(hex: 0x555555)
+        uiStyleLabel(countLabel, 10, .regular, 0x555555)
 
-        for v in [libLabel, countLabel] {
-            v.translatesAutoresizingMaskIntoConstraints = false
-            headerBar.addSubview(v)
-        }
+        uiInstall(headerBar, [libLabel, countLabel])
 
         NSLayoutConstraint.activate([
-            headerBar.topAnchor.constraint(equalTo: topAnchor),
-            headerBar.leadingAnchor.constraint(equalTo: leadingAnchor),
-            headerBar.trailingAnchor.constraint(equalTo: trailingAnchor),
-            headerBar.heightAnchor.constraint(equalToConstant: 28),
-            libLabel.leadingAnchor.constraint(equalTo: headerBar.leadingAnchor, constant: 10),
-            libLabel.centerYAnchor.constraint(equalTo: headerBar.centerYAnchor),
-            countLabel.trailingAnchor.constraint(equalTo: headerBar.trailingAnchor, constant: -10),
-            countLabel.centerYAnchor.constraint(equalTo: headerBar.centerYAnchor),
+            uiConstraint(headerBar, .top, self, .top, .equal, 0),
+            uiConstraint(headerBar, .leading, self, .leading, .equal, 0),
+            uiConstraint(headerBar, .trailing, self, .trailing, .equal, 0),
+            uiConstraint(headerBar, .height, nil, .notAnAttribute, .equal, 28),
+            uiConstraint(libLabel, .leading, headerBar, .leading, .equal, 10),
+            uiConstraint(libLabel, .centerY, headerBar, .centerY, .equal, 0),
+            uiConstraint(countLabel, .trailing, headerBar, .trailing, .equal, -10),
+            uiConstraint(countLabel, .centerY, headerBar, .centerY, .equal, 0),
         ])
     }
 
@@ -74,10 +67,10 @@ final class TrackListView: NSView, NSTableViewDataSource, NSTableViewDelegate {
         addSubview(scrollView)
 
         NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: topAnchor, constant: 28),
-            scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            uiConstraint(scrollView, .top, self, .top, .equal, 28),
+            uiConstraint(scrollView, .leading, self, .leading, .equal, 0),
+            uiConstraint(scrollView, .trailing, self, .trailing, .equal, 0),
+            uiConstraint(scrollView, .bottom, self, .bottom, .equal, 0),
         ])
     }
 
@@ -130,8 +123,8 @@ final class TrackListView: NSView, NSTableViewDataSource, NSTableViewDelegate {
 // MARK: - Cell
 
 private final class TrackCellView: NSView {
-    private let nameLabel = NSTextField(labelWithString: "")
-    private let formatBadge = NSTextField(labelWithString: "")
+    private let nameLabel = uiLabel("")
+    private let formatBadge = uiLabel("")
     private let accentBar = NSView()
 
     override init(frame: NSRect) {
@@ -142,34 +135,27 @@ private final class TrackCellView: NSView {
         nameLabel.lineBreakMode = .byTruncatingTail
         nameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
-        formatBadge.font = NSFont.monospacedSystemFont(ofSize: 8, weight: .medium)
-        formatBadge.textColor = NSColor(hex: 0x444444)
-        formatBadge.wantsLayer = true
-        formatBadge.layer?.borderColor = NSColor(hex: 0x2a2a2a).cgColor
-        formatBadge.layer?.borderWidth = 1
+        uiStyleLabel(formatBadge, 8, .medium, 0x444444)
+        uiBorder(formatBadge, 0x2a2a2a)
         formatBadge.setContentHuggingPriority(.required, for: .horizontal)
         formatBadge.setContentCompressionResistancePriority(.required, for: .horizontal)
 
-        accentBar.wantsLayer = true
-        accentBar.layer?.backgroundColor = NSColor(hex: 0x4a9eff).cgColor
+        uiBackground(accentBar, 0x4a9eff)
 
-        for v in [accentBar, nameLabel, formatBadge] {
-            v.translatesAutoresizingMaskIntoConstraints = false
-            addSubview(v)
-        }
+        uiInstall(self, [accentBar, nameLabel, formatBadge])
 
         NSLayoutConstraint.activate([
-            accentBar.leadingAnchor.constraint(equalTo: leadingAnchor),
-            accentBar.topAnchor.constraint(equalTo: topAnchor),
-            accentBar.bottomAnchor.constraint(equalTo: bottomAnchor),
-            accentBar.widthAnchor.constraint(equalToConstant: 2),
+            uiConstraint(accentBar, .leading, self, .leading, .equal, 0),
+            uiConstraint(accentBar, .top, self, .top, .equal, 0),
+            uiConstraint(accentBar, .bottom, self, .bottom, .equal, 0),
+            uiConstraint(accentBar, .width, nil, .notAnAttribute, .equal, 2),
 
-            nameLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            nameLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
-            nameLabel.trailingAnchor.constraint(lessThanOrEqualTo: formatBadge.leadingAnchor, constant: -8),
+            uiConstraint(nameLabel, .leading, self, .leading, .equal, 12),
+            uiConstraint(nameLabel, .centerY, self, .centerY, .equal, 0),
+            uiConstraint(nameLabel, .trailing, formatBadge, .leading, .lessThanOrEqual, -8),
 
-            formatBadge.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
-            formatBadge.centerYAnchor.constraint(equalTo: centerYAnchor),
+            uiConstraint(formatBadge, .trailing, self, .trailing, .equal, -10),
+            uiConstraint(formatBadge, .centerY, self, .centerY, .equal, 0),
         ])
     }
 

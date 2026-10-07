@@ -61,8 +61,8 @@ def main():
                    'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in files},
         'signature': 'ad-hoc; not Developer ID signed or notarized',
     }
-    if report['binary_bytes'] > 290000 or report['app_bytes'] > 294000:
-        raise SystemExit('Release exceeds the 290,000-byte binary / 294,000-byte app budgets.')
+    if report['binary_bytes'] > 272000 or report['app_bytes'] > 275000:
+        raise SystemExit('Release exceeds the 272,000-byte binary / 275,000-byte app budgets.')
     if args.dmg:
         dmg = output / 'Ultralight.dmg'
         command = ['hdiutil', 'create', '-ov', '-volname', 'Ultralight', '-srcfolder',
@@ -74,8 +74,8 @@ def main():
         report['dmg_bytes'] = dmg.stat().st_size
         report['dmg_format'] = args.dmg
         report['dmg_sha256'] = hashlib.sha256(dmg.read_bytes()).hexdigest()
-        if report['dmg_bytes'] > 130000:
-            raise SystemExit('Release exceeds the 130,000-byte download budget.')
+        if report['dmg_bytes'] > 120000:
+            raise SystemExit('Release exceeds the 120,000-byte download budget.')
     (output / 'size.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps({k: v for k, v in report.items() if k not in ('source_sha256', 'files')}, indent=2))
     print(app)

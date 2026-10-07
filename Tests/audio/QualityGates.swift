@@ -33,6 +33,73 @@ import Combine
         guard let b = allViews(root).compactMap({$0 as? NSButton}).first(where: {$0.title == title}), let a = b.action else { return false }
         return NSApplication.shared.sendAction(a, to: b.target, from: b)
     }
+    // Literal fixtures describe the pre-optimization disk schema independently
+    // of the candidate encoder, so a matching encoder/decoder bug cannot pass.
+    static func checkPersistenceSchemas(fixtures: URL) throws {
+        let band: [String: Any] = ["frequency": 310, "gain": -2.25, "bandwidth": 1.5]
+        let secondBand: [String: Any] = ["frequency": 6000, "gain": 1.25, "bandwidth": 0.5]
+        let profile: [String: Any] = ["bands": [band, secondBand], "preamp": -3.5]
+        let config: [String: Any] = ["folders": ["/music/α", "/archive/space folder"], "theme": "light"]
+        var analysis: [String: Any] = [
+            "bassEnergy": 0.125, "midEnergy": 0.25, "trebleEnergy": 0.625,
+            "spectralCentroid": 1234.5, "dynamicRange": 12.5, "peakLevel": -0.5,
+            "suggestedEQ": profile,
+            "isBassHeavy": true, "isBright": false, "isCompressed": true,
+            "isClipping": false, "isDynamic": true, "isThin": false, "isMuddy": true,
+        ]
+        let b = try verifySchema(EQBand.self, fixture: band, name: "EQBand")
+        check(b.frequency == 310 && b.gain == -2.25 && b.bandwidth == 1.5, "EQBand literal scalar mapping")
+        let p = try verifySchema(EQProfile.self, fixture: profile, name: "EQProfile", savedFile: fixtures.appendingPathComponent("legacy-eq-profiles.json"))
+        check(p.preamp == -3.5 && p.bands.count == 2 && p.bands[1].frequency == 6000 && p.bands[1].gain == 1.25 && p.bands[1].bandwidth == 0.5,
+              "EQProfile literal scalar and nested mapping")
+        let c = try verifySchema(ConfigStore.Config.self, fixture: config, name: "Config")
+        check(c.folders == ["/music/α", "/archive/space folder"] && c.theme == "light", "Config literal scalar mapping")
+        let a = try verifySchema(AnalysisResult.self, fixture: analysis, name: "AnalysisResult", savedFile: fixtures.appendingPathComponent("legacy-analysis-cache.json"))
+        check([a.bassEnergy, a.midEnergy, a.trebleEnergy, a.spectralCentroid, a.dynamicRange, a.peakLevel] == [0.125, 0.25, 0.625, 1234.5, 12.5, -0.5],
+              "AnalysisResult all six literal scalar mappings")
+        check(try sameJSON(a.suggestedEQ, p), "AnalysisResult literal suggested EQ mapping")
+        let flags = ["isBassHeavy", "isBright", "isCompressed", "isClipping", "isDynamic", "isThin", "isMuddy"]
+        for selected in flags.indices {
+            for index in flags.indices { analysis[flags[index]] = index == selected }
+            let value = try JSONDecoder().decode(AnalysisResult.self, from: canonicalJSON(analysis))
+            let actual = [value.isBassHeavy, value.isBright, value.isCompressed, value.isClipping, value.isDynamic, value.isThin, value.isMuddy]
+            let encoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(value))
+            let exactJSON = try canonicalJSON(encoded) == canonicalJSON(analysis)
+            check(actual == flags.indices.map { $0 == selected } && exactJSON,
+                  "AnalysisResult distinct flag mapping " + flags[selected])
+        }
+    }
+
+    static func canonicalJSON(_ object: Any) throws -> Data {
+        try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys, .fragmentsAllowed])
+    }
+
+    static func verifySchema<T: Codable>(_ type: T.Type, fixture: [String: Any], name: String, savedFile: URL? = nil) throws -> T {
+        let expected = try canonicalJSON(fixture)
+        let decoder = JSONDecoder()
+        let value = try decoder.decode(type, from: expected)
+        let encoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(value)) as! [String: Any]
+        check(Set(encoded.keys) == Set(fixture.keys), name + " exact persisted keys")
+        for key in fixture.keys.sorted() {
+            check(try encoded[key].map { try canonicalJSON($0) } == canonicalJSON(fixture[key]!), name + " exact persisted value " + key)
+            var missing = fixture; missing.removeValue(forKey: key)
+            check((try? decoder.decode(type, from: canonicalJSON(missing))) == nil, name + " rejects missing " + key)
+            var wrong = fixture; wrong[key] = fixture[key] is String ? 17 : "wrong-type"
+            check((try? decoder.decode(type, from: canonicalJSON(wrong))) == nil, name + " rejects wrong type " + key)
+        }
+        var future = fixture; future["futureField"] = ["unknown": true]
+        let extended = try decoder.decode(type, from: canonicalJSON(future))
+        let extendedJSON = try JSONSerialization.jsonObject(with: JSONEncoder().encode(extended))
+        check(try canonicalJSON(extendedJSON) == expected, name + " tolerates unknown keys")
+        if let savedFile {
+            try canonicalJSON(["legacy": fixture]).write(to: savedFile)
+            let saved = try decoder.decode([String: T].self, from: Data(contentsOf: savedFile))
+            let savedJSON = try JSONSerialization.jsonObject(with: JSONEncoder().encode(saved))
+            check(try canonicalJSON(savedJSON) == canonicalJSON(["legacy": fixture]), name + " reads legacy persisted dictionary")
+        }
+        return value
+    }
+
     @MainActor static func main() async throws {
         let scratch = URL(fileURLWithPath: ProcessInfo.processInfo.environment["ULTRALIGHT_GATE_ROOT"]!)
         let fixtures = scratch.appendingPathComponent("fixtures")
@@ -71,6 +138,7 @@ import Combine
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
         let decoder = JSONDecoder()
         check(try sameJSON(decoder.decode(EQProfile.self, from: encoder.encode(profile)), profile), "EQ Codable round trip")
+        try checkPersistenceSchemas(fixtures: fixtures)
         let track = Track(id: "test", path: "/test/example.flac", title: "", artist: "artist", album: "album", duration: 125)
         check(track.displayTitle == "example" && track.durationString == "2:05", "Track title fallback and duration")
         var trackCopy = track; trackCopy.title = "Changed"

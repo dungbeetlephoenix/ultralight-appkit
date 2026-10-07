@@ -9,12 +9,12 @@ final class MediaKeyHandler {
         let center = MPRemoteCommandCenter.shared()
 
         center.playCommand.addTarget { [weak self] _ in
-            self?.state?.togglePlay()
+            self?.state?.setPlaying(true)
             return .success
         }
 
         center.pauseCommand.addTarget { [weak self] _ in
-            self?.state?.togglePlay()
+            self?.state?.setPlaying(false)
             return .success
         }
 

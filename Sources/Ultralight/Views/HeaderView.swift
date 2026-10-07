@@ -2,17 +2,16 @@ import AppKit
 import Combine
 
 final class HeaderView: NSView {
-    private let logo = NSTextField(labelWithString: "ULTRALIGHT")
-    private let titleLabel = NSTextField(labelWithString: "")
-    private let artistLabel = NSTextField(labelWithString: "")
-    private let formatBadge = NSTextField(labelWithString: "")
-    private let settingsBtn = NSButton(title: "⚙", target: nil, action: nil)
+    private let logo = uiLabel("ULTRALIGHT")
+    private let titleLabel = uiLabel("")
+    private let artistLabel = uiLabel("")
+    private let formatBadge = uiLabel("")
+    private let settingsBtn = uiButton("⚙")
     private var cancellables = Set<AnyCancellable>()
 
     override init(frame: NSRect) {
         super.init(frame: frame)
-        wantsLayer = true
-        layer?.backgroundColor = NSColor(hex: 0x0e0e0e).cgColor
+        uiBackground(self, 0x0e0e0e)
 
         setupViews()
         bind()
@@ -22,38 +21,29 @@ final class HeaderView: NSView {
 
     private func setupViews() {
         // Logo — small, blue, monospace
-        logo.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .bold)
-        logo.textColor = NSColor(hex: 0x4a9eff)
+        uiStyleLabel(logo, 10, .bold, 0x4a9eff)
         logo.setContentHuggingPriority(.required, for: .horizontal)
         logo.setContentCompressionResistancePriority(.required, for: .horizontal)
 
         // Track title — large, bold, white
-        titleLabel.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .bold)
-        titleLabel.textColor = NSColor(hex: 0xe0e0e0)
+        uiStyleLabel(titleLabel, 13, .bold, 0xe0e0e0)
         titleLabel.lineBreakMode = .byTruncatingTail
         titleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         // Artist — smaller, gray, below title
-        artistLabel.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .regular)
-        artistLabel.textColor = NSColor(hex: 0x555555)
+        uiStyleLabel(artistLabel, 10, .regular, 0x555555)
         artistLabel.lineBreakMode = .byTruncatingTail
         artistLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         artistLabel.isHidden = true
 
         // Format badge — bordered, right side
-        formatBadge.font = NSFont.monospacedSystemFont(ofSize: 9, weight: .medium)
-        formatBadge.textColor = NSColor(hex: 0x555555)
-        formatBadge.wantsLayer = true
-        formatBadge.layer?.borderColor = NSColor(hex: 0x333333).cgColor
-        formatBadge.layer?.borderWidth = 1
+        uiStyleLabel(formatBadge, 9, .medium, 0x555555)
+        uiBorder(formatBadge, 0x333333)
         formatBadge.isHidden = true
         formatBadge.setContentHuggingPriority(.required, for: .horizontal)
 
         // Settings gear
-        settingsBtn.bezelStyle = .inline
-        settingsBtn.isBordered = false
-        settingsBtn.font = NSFont.systemFont(ofSize: 14)
-        settingsBtn.contentTintColor = NSColor(hex: 0x444444)
+        uiStyleButton(settingsBtn, 14, .regular, false, 0x444444)
         settingsBtn.target = self
         settingsBtn.action = #selector(openSettings)
 
@@ -65,30 +55,27 @@ final class HeaderView: NSView {
         infoStack.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         // Layout with direct constraints
-        for v in [logo, infoStack, formatBadge, settingsBtn] as [NSView] {
-            v.translatesAutoresizingMaskIntoConstraints = false
-            addSubview(v)
-        }
+        uiInstall(self, [logo, infoStack, formatBadge, settingsBtn] as [NSView])
 
         NSLayoutConstraint.activate([
             // Logo: 76px from left to clear traffic lights
-            logo.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 76),
-            logo.centerYAnchor.constraint(equalTo: centerYAnchor),
+            uiConstraint(logo, .leading, self, .leading, .equal, 76),
+            uiConstraint(logo, .centerY, self, .centerY, .equal, 0),
 
             // Track info next to logo
-            infoStack.leadingAnchor.constraint(equalTo: logo.trailingAnchor, constant: 12),
-            infoStack.centerYAnchor.constraint(equalTo: centerYAnchor),
+            uiConstraint(infoStack, .leading, logo, .trailing, .equal, 12),
+            uiConstraint(infoStack, .centerY, self, .centerY, .equal, 0),
 
             // Format badge right-aligned
-            formatBadge.trailingAnchor.constraint(equalTo: settingsBtn.leadingAnchor, constant: -10),
-            formatBadge.centerYAnchor.constraint(equalTo: centerYAnchor),
+            uiConstraint(formatBadge, .trailing, settingsBtn, .leading, .equal, -10),
+            uiConstraint(formatBadge, .centerY, self, .centerY, .equal, 0),
 
             // Settings gear far right
-            settingsBtn.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
-            settingsBtn.centerYAnchor.constraint(equalTo: centerYAnchor),
+            uiConstraint(settingsBtn, .trailing, self, .trailing, .equal, -10),
+            uiConstraint(settingsBtn, .centerY, self, .centerY, .equal, 0),
 
             // Info shouldn't overlap badge
-            infoStack.trailingAnchor.constraint(lessThanOrEqualTo: formatBadge.leadingAnchor, constant: -10),
+            uiConstraint(infoStack, .trailing, formatBadge, .leading, .lessThanOrEqual, -10),
         ])
     }
 

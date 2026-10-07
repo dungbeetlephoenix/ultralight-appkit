@@ -4,22 +4,21 @@ import Combine
 final class PlaybackBarView: NSView {
     private let spectrumView = SpectrumView()
     private let progressBar = ProgressBarView()
-    private let timeLabel = NSTextField(labelWithString: "0:00")
-    private let durationLabel = NSTextField(labelWithString: "0:00")
-    private let playBtn = NSButton(title: "▶", target: nil, action: nil)
-    private let prevBtn = NSButton(title: "⏮", target: nil, action: nil)
-    private let nextBtn = NSButton(title: "⏭", target: nil, action: nil)
-    private let shfBtn = NSButton(title: "⤮", target: nil, action: nil)
-    private let rptBtn = NSButton(title: "↻", target: nil, action: nil)
-    private let eqBtn2 = NSButton(title: "EQ", target: nil, action: nil)
+    private let timeLabel = uiLabel("0:00")
+    private let durationLabel = uiLabel("0:00")
+    private let playBtn = uiButton("▶")
+    private let prevBtn = uiButton("⏮")
+    private let nextBtn = uiButton("⏭")
+    private let shfBtn = uiButton("⤮")
+    private let rptBtn = uiButton("↻")
+    private let eqBtn2 = uiButton("EQ")
     private let volBar = ProgressBarView()
-    private let volPctLabel = NSTextField(labelWithString: "80%")
+    private let volPctLabel = uiLabel("80%")
     private var cancellables = Set<AnyCancellable>()
 
     override init(frame: NSRect) {
         super.init(frame: frame)
-        wantsLayer = true
-        layer?.backgroundColor = NSColor(hex: 0x0e0e0e).cgColor
+        uiBackground(self, 0x0e0e0e)
         setup()
         bind()
     }
@@ -28,24 +27,15 @@ final class PlaybackBarView: NSView {
 
     private func setup() {
         for lbl in [timeLabel, durationLabel] {
-            lbl.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .regular)
-            lbl.textColor = NSColor(hex: 0x555555)
+            uiStyleLabel(lbl, 10, .regular, 0x555555)
         }
 
         for btn in [prevBtn, nextBtn, shfBtn, rptBtn] {
-            btn.bezelStyle = .inline
-            btn.isBordered = false
-            btn.font = NSFont.systemFont(ofSize: 14)
-            btn.contentTintColor = NSColor(hex: 0x555555)
+            uiStyleButton(btn, 14, .regular, false, 0x555555)
         }
 
-        playBtn.bezelStyle = .inline
-        playBtn.isBordered = false
-        playBtn.font = NSFont.systemFont(ofSize: 14)
-        playBtn.contentTintColor = NSColor(hex: 0xe0e0e0)
-        playBtn.wantsLayer = true
-        playBtn.layer?.borderColor = NSColor(hex: 0x333333).cgColor
-        playBtn.layer?.borderWidth = 1
+        uiStyleButton(playBtn, 14, .regular, false, 0xe0e0e0)
+        uiBorder(playBtn, 0x333333)
 
         playBtn.target = self; playBtn.action = #selector(togglePlay)
         prevBtn.target = self; prevBtn.action = #selector(prev)
@@ -53,10 +43,7 @@ final class PlaybackBarView: NSView {
         shfBtn.target = self; shfBtn.action = #selector(toggleShuffle)
         rptBtn.target = self; rptBtn.action = #selector(toggleRepeat)
 
-        eqBtn2.bezelStyle = .inline
-        eqBtn2.isBordered = false
-        eqBtn2.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .medium)
-        eqBtn2.contentTintColor = NSColor(hex: 0x4a9eff)
+        uiStyleButton(eqBtn2, 10, .medium, true, 0x4a9eff)
         eqBtn2.target = self
         eqBtn2.action = #selector(toggleEQ)
 
@@ -67,8 +54,7 @@ final class PlaybackBarView: NSView {
             self?.volPctLabel.stringValue = "\(Int(pct * 100))%"
         }
 
-        volPctLabel.font = NSFont.monospacedSystemFont(ofSize: 9, weight: .regular)
-        volPctLabel.textColor = NSColor(hex: 0x555555)
+        uiStyleLabel(volPctLabel, 9, .regular, 0x555555)
 
         progressBar.color = NSColor(hex: 0x4a9eff)
         progressBar.onClick = { pct in
@@ -79,46 +65,38 @@ final class PlaybackBarView: NSView {
         spectrumView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(spectrumView)
 
-        let progressStack = NSStackView(views: [timeLabel, progressBar, durationLabel])
-        progressStack.orientation = .horizontal
-        progressStack.spacing = 6
+        let progressStack = uiStack([timeLabel, progressBar, durationLabel], .horizontal, 6)
 
-        let transportStack = NSStackView(views: [prevBtn, playBtn, nextBtn])
-        transportStack.spacing = 6
+        let transportStack = uiStack([prevBtn, playBtn, nextBtn], .horizontal, 6)
 
-        let volStack = NSStackView(views: [volBar, volPctLabel])
-        volStack.spacing = 6
+        let volStack = uiStack([volBar, volPctLabel], .horizontal, 6)
 
         let spacer1 = NSView(); spacer1.setContentHuggingPriority(.defaultLow, for: .horizontal)
         let spacer2 = NSView(); spacer2.setContentHuggingPriority(.defaultLow, for: .horizontal)
 
-        let controlsStack = NSStackView(views: [shfBtn, rptBtn, spacer1, transportStack, eqBtn2, spacer2, volStack])
-        controlsStack.orientation = .horizontal
-        controlsStack.spacing = 8
+        let controlsStack = uiStack([shfBtn, rptBtn, spacer1, transportStack, eqBtn2, spacer2, volStack], .horizontal, 8)
 
-        let mainStack = NSStackView(views: [progressStack, controlsStack])
-        mainStack.orientation = .vertical
-        mainStack.spacing = 4
+        let mainStack = uiStack([progressStack, controlsStack], .vertical, 4)
         mainStack.edgeInsets = NSEdgeInsets(top: 0, left: 10, bottom: 6, right: 10)
         mainStack.translatesAutoresizingMaskIntoConstraints = false
         addSubview(mainStack)
 
         NSLayoutConstraint.activate([
-            spectrumView.topAnchor.constraint(equalTo: topAnchor, constant: 4),
-            spectrumView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
-            spectrumView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
-            spectrumView.heightAnchor.constraint(equalToConstant: 28),
+            uiConstraint(spectrumView, .top, self, .top, .equal, 4),
+            uiConstraint(spectrumView, .leading, self, .leading, .equal, 10),
+            uiConstraint(spectrumView, .trailing, self, .trailing, .equal, -10),
+            uiConstraint(spectrumView, .height, nil, .notAnAttribute, .equal, 28),
 
-            mainStack.topAnchor.constraint(equalTo: spectrumView.bottomAnchor, constant: 4),
-            mainStack.leadingAnchor.constraint(equalTo: leadingAnchor),
-            mainStack.trailingAnchor.constraint(equalTo: trailingAnchor),
-            mainStack.bottomAnchor.constraint(equalTo: bottomAnchor),
+            uiConstraint(mainStack, .top, spectrumView, .bottom, .equal, 4),
+            uiConstraint(mainStack, .leading, self, .leading, .equal, 0),
+            uiConstraint(mainStack, .trailing, self, .trailing, .equal, 0),
+            uiConstraint(mainStack, .bottom, self, .bottom, .equal, 0),
 
-            progressBar.heightAnchor.constraint(equalToConstant: 16),
-            playBtn.widthAnchor.constraint(equalToConstant: 32),
-            playBtn.heightAnchor.constraint(equalToConstant: 32),
-            volBar.widthAnchor.constraint(equalToConstant: 60),
-            volBar.heightAnchor.constraint(equalToConstant: 4),
+            uiConstraint(progressBar, .height, nil, .notAnAttribute, .equal, 16),
+            uiConstraint(playBtn, .width, nil, .notAnAttribute, .equal, 32),
+            uiConstraint(playBtn, .height, nil, .notAnAttribute, .equal, 32),
+            uiConstraint(volBar, .width, nil, .notAnAttribute, .equal, 60),
+            uiConstraint(volBar, .height, nil, .notAnAttribute, .equal, 4),
         ])
     }
 

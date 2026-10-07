@@ -27,3 +27,42 @@ struct EQProfile: Codable {
         preamp == 0 && bands.allSatisfy { $0.gain == 0 }
     }
 }
+
+// Shared string keys avoid one generated key-enum implementation per JSON model.
+struct JSONKey: CodingKey {
+    let stringValue: String
+    var intValue: Int? { nil }
+    init(_ string: String) { stringValue = string }
+    init?(stringValue: String) { self.stringValue = stringValue }
+    init?(intValue: Int) { return nil }
+}
+
+extension EQBand {
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: JSONKey.self)
+        frequency = try values.decode(Float.self, forKey: JSONKey("frequency"))
+        gain = try values.decode(Float.self, forKey: JSONKey("gain"))
+        bandwidth = try values.decode(Float.self, forKey: JSONKey("bandwidth"))
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: JSONKey.self)
+        try values.encode(frequency, forKey: JSONKey("frequency"))
+        try values.encode(gain, forKey: JSONKey("gain"))
+        try values.encode(bandwidth, forKey: JSONKey("bandwidth"))
+    }
+}
+
+extension EQProfile {
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: JSONKey.self)
+        bands = try values.decode([EQBand].self, forKey: JSONKey("bands"))
+        preamp = try values.decode(Float.self, forKey: JSONKey("preamp"))
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: JSONKey.self)
+        try values.encode(bands, forKey: JSONKey("bands"))
+        try values.encode(preamp, forKey: JSONKey("preamp"))
+    }
+}

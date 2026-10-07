@@ -7,8 +7,7 @@ final class SpectrumView: NSView {
 
     override init(frame: NSRect) {
         super.init(frame: frame)
-        wantsLayer = true
-        layer?.backgroundColor = NSColor(hex: 0x0a0a0a).cgColor
+        uiBackground(self, 0x0a0a0a)
 
         cancellable = AppState.shared.$spectrumData
             .sinkOnMain { [weak self] d in

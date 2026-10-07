@@ -57,6 +57,10 @@ final class PowerSpectrum {
         // Real FFT packs Nyquist in imag[0]; endpoints have half the one-sided weight.
         magnitudes[0] = real[0] * real[0] * 0.5
         magnitudes[half] = imaginary[0] * imaginary[0] * 0.5
-        vDSP_vadd(power, 1, magnitudes, 1, &power, 1, vDSP_Length(half + 1))
+        // One mutable borrow avoids the copy-on-write allocation caused by
+        // passing the same Array as both a value input and an inout output.
+        power.withUnsafeMutableBufferPointer {
+            vDSP_vadd($0.baseAddress!, 1, magnitudes, 1, $0.baseAddress!, 1, vDSP_Length(half + 1))
+        }
     }
 }

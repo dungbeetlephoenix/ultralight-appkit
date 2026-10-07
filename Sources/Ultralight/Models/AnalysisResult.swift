@@ -31,3 +31,41 @@ struct AnalysisResult: Codable {
         return parts.isEmpty ? "Balanced mix" : parts.joined(separator: " · ")
     }
 }
+
+extension AnalysisResult {
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: JSONKey.self)
+        bassEnergy = try values.decode(Float.self, forKey: JSONKey("bassEnergy"))
+        midEnergy = try values.decode(Float.self, forKey: JSONKey("midEnergy"))
+        trebleEnergy = try values.decode(Float.self, forKey: JSONKey("trebleEnergy"))
+        spectralCentroid = try values.decode(Float.self, forKey: JSONKey("spectralCentroid"))
+        dynamicRange = try values.decode(Float.self, forKey: JSONKey("dynamicRange"))
+        peakLevel = try values.decode(Float.self, forKey: JSONKey("peakLevel"))
+        suggestedEQ = try values.decode(EQProfile.self, forKey: JSONKey("suggestedEQ"))
+        isBassHeavy = try values.decode(Bool.self, forKey: JSONKey("isBassHeavy"))
+        isBright = try values.decode(Bool.self, forKey: JSONKey("isBright"))
+        isCompressed = try values.decode(Bool.self, forKey: JSONKey("isCompressed"))
+        isClipping = try values.decode(Bool.self, forKey: JSONKey("isClipping"))
+        isDynamic = try values.decode(Bool.self, forKey: JSONKey("isDynamic"))
+        isThin = try values.decode(Bool.self, forKey: JSONKey("isThin"))
+        isMuddy = try values.decode(Bool.self, forKey: JSONKey("isMuddy"))
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: JSONKey.self)
+        try values.encode(bassEnergy, forKey: JSONKey("bassEnergy"))
+        try values.encode(midEnergy, forKey: JSONKey("midEnergy"))
+        try values.encode(trebleEnergy, forKey: JSONKey("trebleEnergy"))
+        try values.encode(spectralCentroid, forKey: JSONKey("spectralCentroid"))
+        try values.encode(dynamicRange, forKey: JSONKey("dynamicRange"))
+        try values.encode(peakLevel, forKey: JSONKey("peakLevel"))
+        try values.encode(suggestedEQ, forKey: JSONKey("suggestedEQ"))
+        try values.encode(isBassHeavy, forKey: JSONKey("isBassHeavy"))
+        try values.encode(isBright, forKey: JSONKey("isBright"))
+        try values.encode(isCompressed, forKey: JSONKey("isCompressed"))
+        try values.encode(isClipping, forKey: JSONKey("isClipping"))
+        try values.encode(isDynamic, forKey: JSONKey("isDynamic"))
+        try values.encode(isThin, forKey: JSONKey("isThin"))
+        try values.encode(isMuddy, forKey: JSONKey("isMuddy"))
+    }
+}

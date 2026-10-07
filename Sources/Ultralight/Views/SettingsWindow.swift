@@ -30,9 +30,8 @@ final class SettingsWindow: NSWindow {
         contentView = content
 
         // Header
-        let header = NSTextField(labelWithString: "MUSIC FOLDERS")
-        header.font = NSFont.monospacedSystemFont(ofSize: 9, weight: .bold)
-        header.textColor = NSColor(hex: 0xe0e0e0)
+        let header = uiLabel("MUSIC FOLDERS")
+        uiStyleLabel(header, 9, .bold, 0xe0e0e0)
 
         // Folder list
         let scrollView = NSScrollView()
@@ -56,14 +55,9 @@ final class SettingsWindow: NSWindow {
         scrollView.drawsBackground = false
 
         // Buttons
-        let addBtn = NSButton(title: "ADD FOLDER", target: nil, action: nil)
-        addBtn.bezelStyle = .inline
-        addBtn.isBordered = false
-        addBtn.font = NSFont.monospacedSystemFont(ofSize: 8, weight: .medium)
-        addBtn.contentTintColor = NSColor(hex: 0x4a9eff)
-        addBtn.wantsLayer = true
-        addBtn.layer?.borderColor = NSColor(hex: 0x2a2a2a).cgColor
-        addBtn.layer?.borderWidth = 1
+        let addBtn = uiButton("ADD FOLDER")
+        uiStyleButton(addBtn, 8, .medium, true, 0x4a9eff)
+        uiBorder(addBtn, 0x2a2a2a)
 
         let wrapper = AddFolderAction(tableView: tableView)
         objc_setAssociatedObject(self, "addAction", wrapper, .OBJC_ASSOCIATION_RETAIN)
@@ -71,22 +65,19 @@ final class SettingsWindow: NSWindow {
         addBtn.action = #selector(AddFolderAction.invoke)
 
         // Layout
-        for v in [header, scrollView, addBtn] as [NSView] {
-            v.translatesAutoresizingMaskIntoConstraints = false
-            content.addSubview(v)
-        }
+        uiInstall(content, [header, scrollView, addBtn] as [NSView])
 
         NSLayoutConstraint.activate([
-            header.topAnchor.constraint(equalTo: content.topAnchor, constant: 16),
-            header.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
+            uiConstraint(header, .top, content, .top, .equal, 16),
+            uiConstraint(header, .leading, content, .leading, .equal, 16),
 
-            scrollView.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 8),
-            scrollView.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
-            scrollView.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16),
-            scrollView.bottomAnchor.constraint(equalTo: addBtn.topAnchor, constant: -12),
+            uiConstraint(scrollView, .top, header, .bottom, .equal, 8),
+            uiConstraint(scrollView, .leading, content, .leading, .equal, 16),
+            uiConstraint(scrollView, .trailing, content, .trailing, .equal, -16),
+            uiConstraint(scrollView, .bottom, addBtn, .top, .equal, -12),
 
-            addBtn.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -16),
-            addBtn.centerXAnchor.constraint(equalTo: content.centerXAnchor),
+            uiConstraint(addBtn, .bottom, content, .bottom, .equal, -16),
+            uiConstraint(addBtn, .centerX, content, .centerX, .equal, 0),
         ])
     }
 }
@@ -101,33 +92,26 @@ private final class FolderTableDelegate: NSObject, NSTableViewDataSource, NSTabl
         let cell = NSView()
         cell.wantsLayer = true
 
-        let label = NSTextField(labelWithString: folder)
-        label.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .regular)
-        label.textColor = NSColor(hex: 0xe0e0e0)
+        let label = uiLabel(folder)
+        uiStyleLabel(label, 10, .regular, 0xe0e0e0)
         label.lineBreakMode = .byTruncatingMiddle
 
-        let removeBtn = NSButton(title: "✕", target: nil, action: nil)
-        removeBtn.bezelStyle = .inline
-        removeBtn.isBordered = false
-        removeBtn.font = NSFont.systemFont(ofSize: 9)
-        removeBtn.contentTintColor = NSColor(hex: 0x555555)
+        let removeBtn = uiButton("✕")
+        uiStyleButton(removeBtn, 9, .regular, false, 0x555555)
 
         let action = RemoveFolderAction(path: folder, tableView: tableView)
         objc_setAssociatedObject(removeBtn, "action", action, .OBJC_ASSOCIATION_RETAIN)
         removeBtn.target = action
         removeBtn.action = #selector(RemoveFolderAction.invoke)
 
-        for v in [label, removeBtn] {
-            v.translatesAutoresizingMaskIntoConstraints = false
-            cell.addSubview(v)
-        }
+        uiInstall(cell, [label, removeBtn])
 
         NSLayoutConstraint.activate([
-            label.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 8),
-            label.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-            label.trailingAnchor.constraint(equalTo: removeBtn.leadingAnchor, constant: -4),
-            removeBtn.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -8),
-            removeBtn.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+            uiConstraint(label, .leading, cell, .leading, .equal, 8),
+            uiConstraint(label, .centerY, cell, .centerY, .equal, 0),
+            uiConstraint(label, .trailing, removeBtn, .leading, .equal, -4),
+            uiConstraint(removeBtn, .trailing, cell, .trailing, .equal, -8),
+            uiConstraint(removeBtn, .centerY, cell, .centerY, .equal, 0),
         ])
 
         return cell

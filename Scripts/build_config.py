@@ -14,5 +14,5 @@ def source_hashes():
     files = [ROOT / 'Package.swift', *sorted((ROOT / 'Sources').rglob('*.swift')),
              *sorted((ROOT / 'Scripts').glob('*.py'))]
     files += [p for p in sorted((ROOT / 'Tests').rglob('*')) if p.is_file()
-              and 'runs' not in p.parts and p.suffix in ('.swift', '.py', '.json', '.png')]
+              and 'runs' not in p.parts and p.suffix in ('.swift', '.c', '.py', '.json', '.png')]
     return {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}

@@ -12,9 +12,12 @@ final class AudioEngine {
     var loaded: String?
     var queued: String?
     var queueHistory: [String?] = []
-    func setVolume(_ value: Float) {}
-    func applyEQ(_ value: EQProfile) {}
-    func setEQBypassed(_ value: Bool) {}
+    var volume: Float = -1
+    var profile: EQProfile?
+    var bypassed: Bool?
+    func setVolume(_ value: Float) { volume = value }
+    func applyEQ(_ value: EQProfile) { profile = value }
+    func setEQBypassed(_ value: Bool) { bypassed = value }
     func loadAndPlay(path: String) throws { loaded = path; currentTime = 0; duration = 10; isPlaying = true; queued = nil }
     func queueNext(path: String) -> Bool { queued = duration > 0 ? path : nil; queueHistory.append(queued); return queued != nil }
     func clearQueuedTrack() { queued = nil; queueHistory.append(nil) }
@@ -71,9 +74,46 @@ enum FolderScanner {
     static func main() {
         let a = track("a"), b = track("b"), c = track("c", folder: "/tmp/audit/other")
         let state = AppState()
+        check("engine receives initial controls", state.audioEngine.volume == state.volume && state.audioEngine.profile?.isFlat == true && state.audioEngine.bypassed == false)
+        var changeCount = 0
+        let observation = state.objectWillChange.sink { changeCount += 1 }
+        state.volume = 0.3
+        state.eqBypassed = true
+        var editedEQ = EQProfile.flat
+        editedEQ.preamp = -4
+        state.eqProfile = editedEQ
+        check("control changes reach engine immediately", state.audioEngine.volume == 0.3 && state.audioEngine.bypassed == true && state.audioEngine.profile?.preamp == -4)
+        check("direct controls preserve objectWillChange", changeCount == 3)
+        observation.cancel()
+        var nestedEvents = 0
+        let nestedObservation = state.objectWillChange.sink { nestedEvents += 1 }
+        state.eqProfile.bands[0].gain = 6
+        state.eqProfile.preamp = -7
+        check("nested EQ edits reach engine", state.audioEngine.profile?.bands[0].gain == 6 && state.audioEngine.profile?.preamp == -7)
+        check("nested EQ edits still publish both changes", nestedEvents == 2)
+        nestedObservation.cancel()
+        do {
+            var transient: AppState? = AppState()
+            weak var weakState = transient
+            let token = transient!.$volume.sinkOnMain { [weak transient] _ in _ = transient?.volume }
+            transient?.volume = 0.2
+            transient = nil
+            check("pending weak binding does not keep AppState alive", weakState == nil)
+            pump()
+            token.cancel()
+        }
         state.tracks = [a,b,c]
         state.play(track: a); pump()
         check("initial sequential queue", state.audioEngine.queued == b.path)
+        let scheduledCount = state.audioEngine.queueHistory.count
+        state.setPlaying(true)
+        check("explicit play while playing preserves schedule", state.isPlaying && state.audioEngine.queueHistory.count == scheduledCount)
+        state.setPlaying(false)
+        state.setPlaying(false)
+        check("repeated explicit pause stays paused", !state.isPlaying && !state.audioEngine.isPlaying)
+        state.setPlaying(true)
+        state.setPlaying(true)
+        check("repeated explicit play stays playing", state.isPlaying && state.audioEngine.isPlaying && state.audioEngine.queueHistory.count == scheduledCount)
         state.play(track: b); pump()
         Deferred.resolveWave(b.path, [0.2]); pump()
         check("current waveform completes", state.waveformData == [0.2])
@@ -101,6 +141,11 @@ enum FolderScanner {
         check("repeat off clears queue", state.audioEngine.queued == nil)
         state.shuffle = true; pump()
         check("shuffle refreshes noncurrent queue", state.audioEngine.queued == a.path)
+        let queueCount = state.audioEngine.queueHistory.count
+        state.shuffle = true
+        state.repeatMode = false
+        pump()
+        check("unchanged policy preserves scheduled audio", state.audioEngine.queueHistory.count == queueCount)
         state.seek(to: 4)
         check("seek preserves chosen upcoming path", state.audioEngine.queued == a.path && state.currentTime == 4)
         state.playNext(); pump()
