@@ -1,53 +1,45 @@
-# ULTRALIGHT
+# Ultralight
 
-![Ultralight](screenshot.png)
+A small native music player for the Mac. Your library, an equalizer, and the music.
 
-A 183.3 KB native macOS music player (185.8 KB signed app; 99.4 KB download in the verified Apple-silicon build). AppKit, AVFoundation, Accelerate, and Combine; no third-party dependencies or bundled runtime.
+![Ultralight with demo tracks](screenshot.png)
 
-- Local music library with recursive folder scanning and metadata.
-- Eight-band EQ and preamp, with saved per-track settings.
-- Automatic spectral analysis and suggested EQ.
-- Gapless scheduling between tracks with matching decoded sample rates and channel counts; normal next-track playback otherwise.
-- Stereo-aware waveform seeking and a 32-band live spectrum.
-- Shuffle, repeat, media-key commands, menu-bar controls, and output-device selection.
+Ultralight uses AppKit and the audio frameworks already on your Mac. There are no third-party dependencies or bundled runtimes. The release build enforces a **200,000-byte limit for the complete signed app**. The verified local build is **192,812 bytes**, including its icon, license, and signature; the disk image is **106,770 bytes**. [Exact measurements](docs/evidence/release.json).
 
-Audio decoding is provided by macOS. A filename extension alone does not guarantee that its codec is supported.
+It includes an eight-band equalizer with per-track settings, spectral analysis with suggested EQ, a live spectrum, waveform seeking, shuffle, repeat, media keys, and menu-bar controls. Tracks with matching decoded sample rates and channel counts can play continuously; other transitions use normal next-track playback. Codec support comes from macOS.
 
-## Build
+## Get started
 
-Requires macOS and the Xcode command-line tools. The verified build uses Apple Swift 6.3.3 on Apple silicon and targets macOS 14 or later.
+The release target is Apple silicon and macOS 14 or later. The current verified environment is macOS 26.7; the macOS 14 runtime check is pending. See [verification status](docs/evidence/README.md) for the exact scope.
+
+To build and run from source with Xcode installed:
 
 ```sh
-# Development, with normal debug information:
-swift build
+swift run Ultralight
+```
 
-# Verify, compile, strip, sign locally, package, and measure:
+Open Settings with the gear button to add music folders, or drop a folder onto the player. Dropping a file adds its containing folder. Ultralight scans subfolders automatically. Your music stays where it is. Double-click a track to play it.
+
+| Control | Action |
+| --- | --- |
+| Space | Play or pause |
+| Left / Right | Seek five seconds |
+| Command–Left / Command–Right | Previous or next track |
+| Up / Down | Adjust volume |
+| EQ | Show or hide the equalizer |
+
+Player shortcuts yield to focused controls. Sliders use the arrow keys to adjust their own values. Controls also expose names, values, and actions to VoiceOver. Tab navigation follows your macOS keyboard-navigation settings.
+
+Closing the player window keeps the app available in the menu bar. Choose **Show Player** to reopen it or **Quit** to exit. Folder preferences, saved EQ, and cached analysis live in `~/Library/Application Support/ultralight/`.
+
+## Build and verify
+
+```sh
 python3 Scripts/release.py --dmg UDZO
 ```
 
-The release is written to `artifacts/release/Ultralight.app`, with a DMG and a `size.json` containing exact sizes, source hashes, build flags, and file hashes. It is ad-hoc signed for local use, not Developer ID signed or notarized. Nothing is installed automatically.
+This runs the quality gates, builds and signs the app, checks its size, and verifies the contents of the disk image. A failed run leaves the previous release intact. The output is written to `artifacts/release/`.
 
-The release script compiles all production source files together with full link-time optimization, then uses native linker layout and code sharing. SwiftPM release builds also enable single-module LLVM emission; use `swift build -c release -debug-info-format none --experimental-lto-mode full` when comparing them. SwiftPM must receive its own LTO option: putting only `-lto=llvm-full` in manifest compiler flags leaves it expecting the wrong object files. Do not substitute `-num-threads 0`, which also breaks clean builds.
+The default artifact is ad-hoc signed for local use. Public distribution requires its own Developer ID signing and notarization run. Build prerequisites, verification commands, and that signing flow are in [BUILDING.md](BUILDING.md).
 
-## Quality and size gates
-
-```sh
-python3 Scripts/check.py
-```
-
-The release runs every gate before building and verifies that the source has not changed afterward:
-
-- Audio analysis, spectra, waveform edge cases, persistence, and legacy file hashes.
-- Native UI bindings/actions and strict comparisons to three renders of the starting version. Rendering fixes both the window layout density and the 2× bitmap scale; playback geometry has separate checks.
-- Real audio-engine transport and queued transitions at zero output volume.
-- Offline sample-exact continuity, including complete EQ/preamp bypass.
-- Delayed asynchronous completions, idempotent transport commands, and queue/state consistency.
-- Literal compatibility fixtures for every persisted field and deferred binding cancellation/order.
-- Zero warmed-up FFT allocations and at most one output allocation per live spectrum callback.
-- Native signature verification, including rejection of modified code and Info.plist copies.
-- Native pasteboard filtering, duplicate folders, Unicode identity, and subscription lifetimes.
-- Protected constant-data layout, immutable Objective-C method lists, and retained unwind/diagnostic metadata.
-
-Test fixtures and saved settings are isolated from your library. Test code and images are not shipped in the app. The verified Apple-silicon release budgets are 200,000 bytes each for the executable and signed app payload, and 120,000 bytes for the DMG. The current release passes 400 assertions plus allocation and signature/layout gates. A failed gate or exceeded budget stops the release.
-
-See [HILLCLIMB.md](HILLCLIMB.md) for measured results, retained optimizations, rejected experiments, and validation limits.
+Read [the engineering report](HILLCLIMB.md) for the size work and its tradeoffs, or [the changelog](CHANGELOG.md) for this release. The code is available under the [MIT license](LICENSE).

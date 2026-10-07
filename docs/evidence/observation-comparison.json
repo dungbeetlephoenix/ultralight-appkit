@@ -1,0 +1,12 @@
+{
+  "baseline_assertions": 343,
+  "candidate_assertions": 343,
+  "failed": 0,
+  "identical_entire_results": true,
+  "exact_event_traces": 97,
+  "state_assertions": 37,
+  "binding_assertions": 14,
+  "scope": "Actual AppState with deterministic service doubles; no AppKit windows or hardware playback.",
+  "baseline_appstate_sha256": "f2f9a1177dcefb52e3f270db3aaaee0dcbacabcc33736fd297bc076245dac6de",
+  "candidate_appstate_sha256": "991e0a0b68db1470e280eb79da9c8fca483dcac922c8635a7b8c41b9dcb82224"
+}

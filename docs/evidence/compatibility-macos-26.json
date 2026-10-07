@@ -1,0 +1,56 @@
+{
+  "passed": true,
+  "exit_code": 0,
+  "macos": "26.7",
+  "architecture": "arm64",
+  "bundle_sha256": "60fffb1d8edd2ead5bb106ed8acec858d89f21a334484942634bc616499efe35",
+  "checks": [
+    {
+      "name": "fresh isolated settings",
+      "pass": true
+    },
+    {
+      "name": "AppKit window construction",
+      "pass": true
+    },
+    {
+      "name": "player remains silent",
+      "pass": true
+    },
+    {
+      "name": "native slider accessibility",
+      "pass": true
+    },
+    {
+      "name": "accessible adjustment reaches model",
+      "pass": true
+    },
+    {
+      "name": "Combine reflection and delivery",
+      "pass": true
+    },
+    {
+      "name": "native drawing",
+      "pass": true
+    },
+    {
+      "name": "application icon decodes",
+      "pass": true
+    },
+    {
+      "name": "native audio samples decode",
+      "pass": true
+    },
+    {
+      "name": "asynchronous native metadata",
+      "pass": true
+    },
+    {
+      "name": "native scanner canonical path",
+      "pass": true
+    }
+  ],
+  "compiler": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0",
+  "source_commit": "dbd42ad2d873ab2ca0aa219466ef106cdbb05129",
+  "harness_sha256": "0192eca4ba18daa7d987bb31090872170ae842d3adbe8f3378f3f16d00a28c74"
+}

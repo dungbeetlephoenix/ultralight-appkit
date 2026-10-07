@@ -1,0 +1,286 @@
+{
+  "version": "2.2.0",
+  "git_head": "dbd42ad2d873ab2ca0aa219466ef106cdbb05129",
+  "toolchain": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0",
+  "architecture": "arm64",
+  "binary_bytes": 183600,
+  "app_bytes": 192812,
+  "dmg_bytes": 106770,
+  "dmg_format": "UDZO",
+  "dmg_sha256": "61f3e33821033e53b28a8316cf5bd79b0f8ea4fe5c4dc1fdeaeef3ceb2c40d36",
+  "signature": "ad-hoc; not Developer ID signed or notarized",
+  "signature_gate": {
+    "clean_verified": true,
+    "layout": {
+      "immutable_method_lists": 16,
+      "protected_literals": true,
+      "segments": {
+        "__DATA": {
+          "flags": 0,
+          "initial": 3,
+          "maximum": 3
+        },
+        "__DATA_CONST": {
+          "flags": 16,
+          "initial": 3,
+          "maximum": 3
+        },
+        "__LINKEDIT": {
+          "flags": 0,
+          "initial": 1,
+          "maximum": 1
+        },
+        "__PAGEZERO": {
+          "flags": 0,
+          "initial": 0,
+          "maximum": 0
+        },
+        "__TEXT": {
+          "flags": 0,
+          "initial": 5,
+          "maximum": 5
+        }
+      },
+      "swift_metadata_in_text": true,
+      "unwind_and_diagnostics_retained": true
+    },
+    "passed": true,
+    "signature": {
+      "reserved_bytes": 656,
+      "used_bytes": 646
+    },
+    "signing_policy": {
+      "hardened_runtime": false,
+      "mode": "adhoc",
+      "secure_timestamp": false
+    },
+    "tampered_rejected": {
+      "code": true,
+      "plist": true
+    }
+  },
+  "source_sha256": {
+    "Package.swift": "c8cc1f69902eaf5f6c04917e302f5f32dab9d85f116c2eaf589849addfe82f7c",
+    "VERSION": "c4a2383a03bdb6739d16a0e24058e4b9c7da4e63d203e0be2f448868cc03c530",
+    "LICENSE": "00823e3081ec97cb3a7cc39cf7296f63e2c4282e34c5eace3c1c03d98586bd3f",
+    "Sources/Ultralight/App/AppDelegate.swift": "b4c0cfbe1e11dcace6faedce4ae13b91ce7ffca7a00e1bc184baa260a6e97748",
+    "Sources/Ultralight/App/AppState.swift": "136b65fa38a9e04306c31b5e6656959ffe7adc1a5b93074542c7fbbda9500463",
+    "Sources/Ultralight/App/Binding.swift": "bb81593c4cd648b5756699c23f0f1ef8935aedef47d30dcc856d236cee02a116",
+    "Sources/Ultralight/App/main.swift": "9ea56f9610f0a4fce6f18754fd3ee7af297433319472c9305c40e9683a8d75f2",
+    "Sources/Ultralight/Audio/AudioAnalyzer.swift": "f9e6252ae78e33966d4e8738b3fc2515f99e44eca005759e333cda1e224c8f7b",
+    "Sources/Ultralight/Audio/AudioEngine.swift": "7e057be9a49443bcba247f189e9c88004c2a0b0f8d204638bdd4bc54bacddcdb",
+    "Sources/Ultralight/Audio/FileHasher.swift": "92f625142041efe405bbea41003ab8c322e20ef59d7f5ba1d6cb8498ddc80bac",
+    "Sources/Ultralight/Audio/PowerSpectrum.swift": "d1f7ef1f5f356f265c5fc1a38c6b112cc1e08a8726dec1324d15b06de8ab7b26",
+    "Sources/Ultralight/Models/AnalysisResult.swift": "d57dcb7884ac825ab3fb1a995d8d87e53846ee52f3d010b39717455fb7187737",
+    "Sources/Ultralight/Models/EQProfile.swift": "6692ccec0fc1d3dca261ce0b2948cc18dc5f5266d74d9e43202193846eaf8a9f",
+    "Sources/Ultralight/Models/Track.swift": "261437d2c7199c507c938d832057e8f8edcf0202691e8df6d3db5a0bea29065a",
+    "Sources/Ultralight/Scanner/FolderScanner.swift": "98fb370e989634840f2a0be9a319510eefa1a72bba971478cc6c7dc76db28890",
+    "Sources/Ultralight/Storage/AnalysisStore.swift": "9b72c51581c1531d593d1e9520d00bd2c658b05738a847b56354df351d0d85c1",
+    "Sources/Ultralight/Storage/ConfigStore.swift": "338327943e3e6f0b34bbf4476c83c3952095aef93de74cb50dda4017cc67df52",
+    "Sources/Ultralight/Storage/EQStore.swift": "2ece5028a0de99f428638e35b256887315df19b66de847fcab79190394fb7613",
+    "Sources/Ultralight/System/MediaKeyHandler.swift": "9d7b6c785001e3722bd7367dab669ef45394cad355e4898409a8c4dda514778f",
+    "Sources/Ultralight/System/MenuBarManager.swift": "4475d99b2bf328ab605e1765752068e25e027549c589dfaa6b74fcac3ed7c8de",
+    "Sources/Ultralight/Views/EQPanelView.swift": "4a8d8b3aa60b9fdcede2ee57566a84f67a62fa2bb44e9d30e3adfbef7410a054",
+    "Sources/Ultralight/Views/HeaderView.swift": "178db857375de2bb0d24e3098a3fd7735ddd3373c96a9b1e06aef4a9dc3a5ff5",
+    "Sources/Ultralight/Views/MainWindow.swift": "254ffc48d2ceb5e5132a4365807762b31daeabc7180624fa32cbc788aa95135d",
+    "Sources/Ultralight/Views/PlaybackBarView.swift": "1de8f35d0dd8666bb3833d5e6abff7090428ae79bcbdf951101220361d39fde4",
+    "Sources/Ultralight/Views/SettingsWindow.swift": "8ded7cf1e902bd6b440e1320df15e6cac07ed5e20bce9402729eedcab5fd0eda",
+    "Sources/Ultralight/Views/SpectrumView.swift": "71c53b32ae221a71ed46a3d199c9c55420a796e3a5af08b1923aa05425ffab7d",
+    "Sources/Ultralight/Views/TrackListView.swift": "e1cb1e58181f71acedf1269d24d2291faf6ba5b963d986fe7374e04942b5c8b5",
+    "Sources/Ultralight/Views/UIConstruction.swift": "7528316306818d0057f4740e373520c84f97be5348c5878f1ce156d9a747bea1",
+    "Scripts/build_config.py": "50fbb24ea09373c69bd1bb78d78b1614268a470af6b9680deda5a61dca9f6431",
+    "Scripts/check.py": "6efe1094dfc4b19d4a444dff29fc86669848ac4ccd47a4ce4620aae335f57257",
+    "Scripts/evidence.py": "daad0edb04c17eb558f3376671c551729c8dbcb390f1f82e628cd32b07fffa58",
+    "Scripts/icon.swift": "9be93203aeae7692e032b4308fc5d04148a181306253cfd921bc24d84b5df00f",
+    "Scripts/make_icon.py": "927dfc7c93387c14528f8958ac3191a8b04b7353734fb5945e7f9e641dd61e03",
+    "Scripts/release.py": "6ef76617af9c0865a203b251162b512081c65ca03e41409ddaad19e7a324f548",
+    "Tests/allocation/AllocationAudit.swift": "dd9bc5fdb76dfbec59539e6e429c89bca28a118686adb96177a4b6589c2073ca",
+    "Tests/allocation/Count.c": "f63b8794115bf78f5c2503aa112b778ac0ac03a75a95bb2193f8704f83ba5331",
+    "Tests/allocation/run.py": "d4aaa2428d8327edb49ec21f1c2a414f4216ac3a577be30c15c21fc5156c86e5",
+    "Tests/audio/QualityGates.swift": "3aed907c154ef9b1086fa1e863865a1ce9cc43c9a2c0b3f3e09071be005f9c61",
+    "Tests/audio/run-gates.py": "833d936b63a00efcf27cb2c162520300bb2670d550db7430ccfdbf062acb23ba",
+    "Tests/binding/BindingGates.swift": "00fe2534a280ac956e5ab23a82b7c05d6f490d091b926a314f918a6dfa10fcf0",
+    "Tests/binding/run.py": "8d0041d6c320468cecbe88c73fa0a4c1cfadd1a2b5d50e6aed6da78dfd4520ea",
+    "Tests/compatibility/Smoke.swift": "397830cc72026aa60c78da55409feba666433815dc7330863c0798efe61052b0",
+    "Tests/compatibility/run.py": "a530f7e53d27fa42787ade10d2f963138468842ecd9c7a5ba0e73d457b0761ed",
+    "Tests/drop/DragAudit.swift": "c30c7d1acfefcdbc48e2ef74130d4c7301a7cc55be38d96d361285a9f5421810",
+    "Tests/drop/run.py": "39ca4d35893e017833eea7ae96298b431db5b03c55e60cc6298d2766705b94cf",
+    "Tests/observation/ObservationAudit.swift": "169ed93196f6844fc9afdc04560328a8637fd05efb5cf4f4603607f888133c1f",
+    "Tests/observation/run.py": "9d976e83b2ed8c79f379c34c30b287c69795ef2c32844da916dc4f3ec8ece9ce",
+    "Tests/playback/ContinuityAccess.swift": "75a03d670574a04f04b2786091c0e723e8e0462b8584d47a338137d6703fc568",
+    "Tests/playback/ContinuityAudit.swift": "62416c2da1b6be69b16636b0cf2d72b6b3a47acf2b1874b1f1fed73ce62d21e9",
+    "Tests/playback/PlaybackAudit.swift": "49213d63d8a2bc1dfcfbf496d8e438d6c71931f73134b25f2d9437a1f9e0a46a",
+    "Tests/playback/TestAccess.swift": "70e06be58f45813263d01e566c4c24494cb56812fed9b975448aeea9e9b7652e",
+    "Tests/playback/continuity.py": "78556d6d003ec869da902ac12070c533b21fcdfa0e9a8d4d7c75775029542a8c",
+    "Tests/playback/run.py": "bb55a99945db28a0f735a55adc81947602cae2b77e55dc6d746628233bbc0099",
+    "Tests/signing/verify.py": "2748dfda44e6771a3e9cbb5d1c995f2ef6ffedba27f270894da5e5df9dda83a2",
+    "Tests/state/StateAudit.swift": "78d55b34ec8e036203aadba794519cba7fa588651659713c339dc55ddbb4e1b2",
+    "Tests/state/run.py": "551de3321561463c52d08ac445c97d9a0416816f644e6afbdc59f9159de2f8c5",
+    "Tests/tooling/test_compatibility.py": "749ddd4660449a896d8d08ad63571ac65942b8e941c54d1f3b1c488a35231524",
+    "Tests/tooling/test_evidence.py": "95f89a2e7ff156c945398e53929368b5418ba30aa2ed6add653d3931b461c60c",
+    "Tests/tooling/test_release.py": "adc5287f9fdd6e8c7508f0fd35f30f5a3176bf58716e7f899b8ede0447109565",
+    "Tests/ui/UIAudit.swift": "04fa33e5f7c730810d6fc6e7567944bc40b8b1ba9d449c23675a97f4ddd4e37d",
+    "Tests/ui/baseline/compact-600x400.png": "ddde85a5cb228201af0517dac11582151ef6163e3c1699f3c898486b425cdbf0",
+    "Tests/ui/baseline/default-900x600.png": "341b46c85062329b3b9a6113c1ce7ba9b09a7a8709a003b133659eb36a1cae3e",
+    "Tests/ui/baseline/eq-hidden.png": "8bb651bfa86b7ee2f30f516d0e35da64ef07d623a27985f8a7cbe6a6b953d722",
+    "Tests/ui/baseline/provenance.json": "e4073b800c7bcfaf51813b18695a7d965a083b5d004c309365af70748a2b78ee",
+    "Tests/ui/baseline/results.json": "f8891f3e0d22bb1f5ea436c3284bc421ac4c69f8299f85ab6dd1789e8584fe49",
+    "Tests/ui/compare.py": "a1e2518575f9188902dc5d5f5b79bdf7ea81c3806eef13a3d4361fc29c02be44",
+    "Tests/ui/run.py": "9f772d7dd8efd29c2d0d2a58fa27986208f94463d05bddace68dbf28d98c4e88",
+    "Resources/AppIcon.icns": "1e00998158ea727b54b7cde7b5b16315895640fd415dae796f2a6e14614f7ff8",
+    ".github/workflows/checks.yml": "5908ee477ee0017eb012cda9ffd8fabbd21aae231966faf2b1b09cc3588db654",
+    ".github/workflows/release-check.yml": "74a6f3be63edac603a5c6be23065973857dff5b946bfa6877979b5bbfff076a0"
+  },
+  "flags": [
+    "-swift-version",
+    "5",
+    "-Osize",
+    "-whole-module-optimization",
+    "-gnone",
+    "-lto=llvm-full",
+    "-Xfrontend",
+    "-disable-reflection-metadata",
+    "-Xlinker",
+    "-const_selrefs",
+    "-Xlinker",
+    "-objc_stubs_small",
+    "-Xlinker",
+    "-mllvm",
+    "-Xlinker",
+    "-enable-linkonceodr-outlining",
+    "-Xlinker",
+    "-mllvm",
+    "-Xlinker",
+    "-machine-outliner-reruns=1",
+    "-Xlinker",
+    "-dead_strip",
+    "-Xlinker",
+    "-x",
+    "-Xlinker",
+    "-rename_section",
+    "-Xlinker",
+    "__TEXT",
+    "-Xlinker",
+    "__const",
+    "-Xlinker",
+    "__DATA_CONST",
+    "-Xlinker",
+    "__text_const",
+    "-Xlinker",
+    "-rename_section",
+    "-Xlinker",
+    "__TEXT",
+    "-Xlinker",
+    "__cstring",
+    "-Xlinker",
+    "__DATA_CONST",
+    "-Xlinker",
+    "__cstring",
+    "-Xlinker",
+    "-rename_section",
+    "-Xlinker",
+    "__TEXT",
+    "-Xlinker",
+    "__objc_classname",
+    "-Xlinker",
+    "__DATA_CONST",
+    "-Xlinker",
+    "__objc_classname",
+    "-Xlinker",
+    "-rename_section",
+    "-Xlinker",
+    "__TEXT",
+    "-Xlinker",
+    "__objc_methlist",
+    "-Xlinker",
+    "__DATA_CONST",
+    "-Xlinker",
+    "__objc_methlist"
+  ],
+  "files": {
+    "Contents/Info.plist": {
+      "bytes": 403,
+      "sha256": "10a4a0c6103602f5181f8ffbff44ae59b30df4abde7270da8e4d9881fb1282dc"
+    },
+    "Contents/MacOS/Ultralight": {
+      "bytes": 183600,
+      "sha256": "50deb8a2579330d4d463dc27a41d06c82a8865d937c706af24e95c0ef7cf3e9a"
+    },
+    "Contents/Resources/AppIcon.icns": {
+      "bytes": 5063,
+      "sha256": "1e00998158ea727b54b7cde7b5b16315895640fd415dae796f2a6e14614f7ff8"
+    },
+    "Contents/Resources/LICENSE": {
+      "bytes": 1080,
+      "sha256": "00823e3081ec97cb3a7cc39cf7296f63e2c4282e34c5eace3c1c03d98586bd3f"
+    },
+    "Contents/_CodeSignature/CodeResources": {
+      "bytes": 2666,
+      "sha256": "4717e60efeb388711c9d807a73d32c89c066ab98bc5b2d79fdc7769e763f6be6"
+    }
+  },
+  "signature_cms_reserve_bytes": 8,
+  "environment": {
+    "toolchain": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0",
+    "architecture": "arm64",
+    "macos": "26.7",
+    "target": "arm64-apple-macosx14.0"
+  },
+  "dmg_gate": {
+    "passed": true,
+    "read_only": true,
+    "root_entries": [
+      "Ultralight.app"
+    ],
+    "payload_files": 5,
+    "signature_mode": "adhoc",
+    "stapled_app_validated": false
+  },
+  "gates": {
+    "passed": true,
+    "source_stable": true,
+    "suites": {
+      "tooling": 0,
+      "audio": 0,
+      "ui": 0,
+      "playback": 0,
+      "continuity": 0,
+      "state": 0,
+      "observation": 0,
+      "binding": 0,
+      "drop": 0,
+      "allocation": 0
+    }
+  },
+  "assertion_summaries": {
+    "tooling": [],
+    "audio": [
+      "RESULT 186 passed; 0 failed"
+    ],
+    "ui": [
+      "RESULT 67/67 checks passed; 1 observations",
+      "GEOMETRY 10/10 checks passed",
+      "LIFECYCLE 6/6 checks passed",
+      "FINISHING 36/36 checks passed"
+    ],
+    "playback": [
+      "RESULT 54/54 checks passed"
+    ],
+    "continuity": [
+      "RESULT 8/8 checks passed"
+    ],
+    "state": [
+      "RESULT 37/37 checks passed"
+    ],
+    "observation": [
+      "RESULT 343/343 observation assertions"
+    ],
+    "binding": [
+      "RESULT 14/14"
+    ],
+    "drop": [
+      "RESULT 18/18"
+    ],
+    "allocation": []
+  }
+}
