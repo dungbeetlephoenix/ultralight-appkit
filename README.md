@@ -2,7 +2,7 @@
 
 ![Ultralight](screenshot.png)
 
-A 269.7 KB native macOS music player (272.3 KB signed app; 116.2 KB download in the verified Apple-silicon build). AppKit, AVFoundation, Accelerate, and Combine; no third-party dependencies or bundled runtime.
+A 235.3 KB native macOS music player (237.9 KB signed app; 114.7 KB download in the verified Apple-silicon build). AppKit, AVFoundation, Accelerate, and Combine; no third-party dependencies or bundled runtime.
 
 - Local music library with recursive folder scanning and metadata.
 - Eight-band EQ and preamp, with saved per-track settings.
@@ -38,13 +38,14 @@ python3 Scripts/check.py
 The release runs every gate before building and verifies that the source has not changed afterward:
 
 - Audio analysis, spectra, waveform edge cases, persistence, and legacy file hashes.
-- Native UI bindings/actions and strict comparisons to three renders of the starting version. Rendering uses a fixed 2× scale.
+- Native UI bindings/actions and strict comparisons to three renders of the starting version. Rendering fixes both the window layout density and the 2× bitmap scale; playback geometry has separate checks.
 - Real audio-engine transport and queued transitions at zero output volume.
 - Offline sample-exact continuity, including complete EQ/preamp bypass.
 - Delayed asynchronous completions, idempotent transport commands, and queue/state consistency.
 - Literal compatibility fixtures for every persisted field and deferred binding cancellation/order.
 - Zero warmed-up FFT allocations and at most one output allocation per live spectrum callback.
+- Native signature verification, including rejection of modified code and Info.plist copies.
 
-Test fixtures and saved settings are isolated from your library. Test code and images are not shipped in the app. The verified Apple-silicon release budgets are 272,000 bytes for the executable, 275,000 bytes for the signed app payload, and 120,000 bytes for the DMG. The current release passes 350 assertions plus the calibrated allocation gate. A failed gate or exceeded budget stops the release.
+Test fixtures and saved settings are isolated from your library. Test code and images are not shipped in the app. The verified Apple-silicon release budgets are 250,000 bytes each for the executable and signed app payload, and 120,000 bytes for the DMG. The current release passes 360 assertions plus allocation and signature gates. A failed gate or exceeded budget stops the release.
 
 See [HILLCLIMB.md](HILLCLIMB.md) for measured results, retained optimizations, rejected experiments, and validation limits.
